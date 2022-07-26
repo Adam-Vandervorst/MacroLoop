@@ -3,6 +3,8 @@ package macroloop
 import macros.*
 
 inline def show(inline a: Any): String = ${ showImpl('a) }
+// transparent prevents tagging the returned code with an extra typing judgement
+transparent inline def translateCode(inline x: Any, inline y: Any): Any = ${ translateCodeImpl('x, 'y) }
 
 object IntRange:
   inline def forEach(inline start: Int, inline stop: Int, inline step: Int)(inline f: Int => Unit): Unit =
@@ -11,15 +13,20 @@ object IntRange:
   inline def forEachUnrolled(inline start: Int, inline stop: Int, inline step: Int)(inline f: Int => Unit): Unit =
     ${ IntRangeImpl.forEachUnrolled('start, 'stop, 'step, 'f) }
 
+object IterableIt:
+  // `Iterator` arguments are *not* inlined
+  inline def forEach[T](it: IterableOnce[T])(inline f: T => Unit): Unit =
+    ${ IterableItImpl.forEach('it, 'f) }
+
+  inline def forEachCart2[T1, T2](it1: IterableOnce[T1], it2: Iterable[T2])(inline f: (T1, T2) => Unit): Unit =
+    ${ IterableItImpl.forEachCart2('it1, 'it2, 'f) }
+
 object ArrayIndex:
   inline def forEach[T](inline a: Array[T])(inline f: T => Unit): Unit =
     ${ ArrayIndexImpl.forEach('a, 'f) }
 
   inline def forEachUnrolledN[T, N <: Int & Singleton](inline n: N)(inline a: Array[T])(inline f: T => Unit): Unit =
     ${ ArrayIndexImpl.forEachUnrolledN('a, 'f, 'n) }
-
-//  inline def forEachUnrolled16[T](inline a: Array[T])(inline f: T => Unit): Unit =
-//    ${ ArrayIndexImpl.forEachUnrolledN('a, 'f, 16) }
 
   inline def forallException[T](inline a: Array[T])(inline f: T => Boolean): Boolean =
     ${ ArrayIndexImpl.forallException('a, 'f) }

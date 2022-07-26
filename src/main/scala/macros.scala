@@ -5,7 +5,49 @@ import scala.annotation.tailrec
 import compiletime.*
 
 def showImpl(e: Expr[Any])(using Quotes): Expr[String] =
-  Expr(e.show)
+  import quotes.reflect.*
+  Expr(e.asTerm.show(using Printer.TreeShortCode))
+
+def translateCodeImpl(x: Expr[Any], y: Expr[Any])(using Quotes): Expr[Any] =
+  import quotes.reflect.*
+  renameBoundFrom(x.asTerm, y.asTerm).asExpr
+
+def simplifyTrivialInline(using q: Quotes)(x: q.reflect.Term, simplifyNamed: Boolean = false): q.reflect.Term =
+  import quotes.reflect.*
+  val rewr = new TreeMap:
+    override def transformTerm(tree: Term)(owner: Symbol): Term = tree match
+      case Inlined(None, Nil, b) => transformTerm(b)(owner)
+      case Inlined(Some(Ident(_)), Nil, b) if simplifyNamed => transformTerm(b)(owner)
+      case _ => super.transformTerm(tree)(owner)
+  rewr.transformTerm(x)(Symbol.spliceOwner)
+
+def gatherValDefSymbols(using q: Quotes)(x: q.reflect.Term): List[q.reflect.Symbol] =
+  import collection.mutable.ListBuffer
+  import quotes.reflect.*
+  val acc = new TreeAccumulator[ListBuffer[Symbol]]:
+    def foldTree(syms: ListBuffer[Symbol], tree: Tree)(owner: Symbol): ListBuffer[Symbol] = tree match
+      case vdef @ ValDef(_, _, rhs) => rhs.map(t => foldTree(syms, t)(owner)).getOrElse(syms).append(vdef.symbol)
+      case _ => foldOverTree(syms, tree)(owner)
+  acc.foldTree(ListBuffer.empty, x)(Symbol.spliceOwner).result()
+
+def translateRefs(using q: Quotes)(mapping: Map[q.reflect.Symbol, q.reflect.Symbol])(x: q.reflect.Term): q.reflect.Term =
+  // TODO this can fail and should return an option
+  import quotes.reflect.*
+  val rewr = new TreeMap:
+    override def transformStatement(tree: Statement)(owner: Symbol): Statement = tree match
+      case d @ ValDef(_, _, rhs) => ValDef(mapping(d.symbol), rhs.map(transformTerm(_)(owner))): Statement
+      case _ => super.transformStatement(tree)(owner)
+    override def transformTerm(tree: Term)(owner: Symbol): Term = tree match
+      case i: Ident => mapping.unapply(i.symbol).fold(i)(s => Ident(s.termRef))
+      case _ => super.transformTerm(tree)(owner)
+  rewr.transformTerm(x)(Symbol.spliceOwner)
+
+def renameBoundFrom(using q: Quotes)(toRename: q.reflect.Term, niceNames: q.reflect.Term): q.reflect.Term =
+  val sourceNames = gatherValDefSymbols(toRename)
+  val targetNames = gatherValDefSymbols(niceNames)
+  // TODO this can fail and should flatMap into an option
+  val mapping = (sourceNames zip targetNames).toMap
+  translateRefs(mapping)(toRename)
 
 def untuple[B : Type](e: Expr[Tuple])(using Quotes): Seq[Expr[B]] =
   import quotes.reflect.*
@@ -17,10 +59,6 @@ def untuple[B : Type](e: Expr[Tuple])(using Quotes): Seq[Expr[B]] =
     case Apply(_, args) => args.map(_.asExprOf[B])
     case _ => report.errorAndAbort(s"couldn't untuple tree ${tree.show}")
   rec(e.asTerm)
-
-//inline def spawnTuple[T, B]: Seq[B] = erasedValue[T] match
-//  case _: EmptyTuple => Nil
-//  case _: (h *: tail) => summonInline[h] *: spawnTuple[tail, B]
 
 def tupleFromExprSmall[Tup <: NonEmptyTuple](e: Expr[Tup])(using Quotes): Tuple.Map[Tup, Expr] = e match
   case '{ Tuple1($x) } => Tuple(x).asInstanceOf
@@ -48,6 +86,20 @@ object IntRangeImpl:
         i += $step
     }
 
+object IterableItImpl:
+  private def forEachE[T : Type](ito: Expr[IterableOnce[T]], ef: Expr[T] => Expr[Unit])(using Quotes): Expr[Unit] = '{
+    val it: Iterator[T] = $ito.iterator
+    while it.hasNext do
+      val v = it.next()
+      ${ ef('v) }
+  }
+
+  def forEach[T : Type](ite: Expr[IterableOnce[T]], f: Expr[T => Unit])(using Quotes): Expr[Unit] =
+    forEachE(ite, et => '{ $f($et) })
+
+  def forEachCart2[T1 : Type, T2 : Type](ite1: Expr[IterableOnce[T1]], ite2: Expr[Iterable[T2]], f: Expr[(T1, T2) => Unit])(using Quotes): Expr[Unit] =
+    forEachE(ite1, et1 => forEachE(ite2, et2 => '{ $f($et1, $et2) }))
+
 object ArrayIndexImpl:
   def forEach[T : Type](a: Expr[Array[T]], f: Expr[T => Unit])(using Quotes): Expr[Unit] =
     '{
@@ -66,14 +118,12 @@ object ArrayIndexImpl:
       val size = $a.length
       val r = size % ${Expr(n)}
       var i = 0
-      while (i < r) {
+      while i < r do
         $f($a(i))
         i += 1
-      }
-      while (i < size) {
+      while i < size do
         ${ foreachInRange(0, n)(j => '{ $f($a(i + ${Expr(j)})) }) }
         i += ${Expr(n)}
-      }
     }
 
   def forallException[T : Type](a: Expr[Array[T]], f: Expr[T => Boolean])(using Quotes): Expr[Boolean] =
