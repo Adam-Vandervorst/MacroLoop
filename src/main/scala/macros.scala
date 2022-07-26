@@ -122,7 +122,8 @@ object ArrayIndexImpl:
         $f($a(i))
         i += 1
       while i < size do
-        ${ foreachInRange(0, n)(j => '{ $f($a(i + ${Expr(j)})) }) }
+        $f($a(i))
+        ${ foreachInRange(1, n)(j => '{ $f($a(i + ${Expr(j)})) }) }
         i += ${Expr(n)}
     }
 

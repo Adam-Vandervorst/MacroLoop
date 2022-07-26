@@ -77,7 +77,7 @@ class LiteralArrayIndex extends LiteralFunSuite:
         println(x)
         i += 1
       while i < size do
-        val x0 = a(i + 0)
+        val x0 = a(i)
         println(x0)
         val x1 = a(i + 1)
         println(x1)
