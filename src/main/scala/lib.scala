@@ -1,6 +1,8 @@
 package macroloop
 
-import macros.*
+import macroloop.staging
+import macroloop.macros.*
+
 
 inline def show(inline a: Any): String = ${ showImpl('a) }
 // transparent prevents tagging the returned code with an extra typing judgement
@@ -34,9 +36,16 @@ object ArrayIndex:
   inline def forallCondition[T](inline a: Array[T])(inline f: T => Boolean): Boolean =
     ${ ArrayIndexImpl.forallCondition('a, 'f) }
 
-import macroloop.staging
+object ConstantList:
+  transparent inline def toTuple22(inline l: List[Any]): Tuple =
+    ${ ConstantListImpl.toTuple22('l) }
 
 object ConstantTuple:
+  import compiletime.{constValue, erasedValue}
+  transparent inline def constToList[Tup <: Tuple]: List[Any] = inline erasedValue[Tup] match
+    case _: EmptyTuple => Nil
+    case _: (head *: tail) => constValue[head] :: constToList[tail]
+
   inline def forEachUnrolled[Tup <: Tuple](inline t: Tup)(inline f: Any => Unit): Unit =
     ${ ConstantTupleImpl.forEachUnrolled('t, 'f) }
 

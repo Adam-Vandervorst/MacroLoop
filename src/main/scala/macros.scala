@@ -68,6 +68,15 @@ def tupleFromExprSmall[Tup <: NonEmptyTuple](e: Expr[Tup])(using Quotes): Tuple.
   case '{ Tuple3($x, $y, $z) } => (x, y, z).asInstanceOf
   case '{ Tuple4($x, $y, $z, $w) } => (x, y, z, w).asInstanceOf
 
+import quoted.FromExpr.BooleanFromExpr
+val PrimitiveFromExpr = quoted.FromExpr.BooleanFromExpr.asInstanceOf[FromExpr[Const]]
+
+def unlist(xs: Expr[List[Any]])(using Quotes): Option[List[Expr[Any]]] = xs match
+  case '{ $x :: ($xs1: List[Any]) } =>
+    for tail <- unlist(xs1) yield x :: tail
+  case '{ Nil } => Some(Nil)
+  case _ => None
+
 def betaReduceFixE[T](e: Expr[T])(using Quotes): Expr[T] = fix((x: Expr[T]) => Expr.betaReduce(x))(e)
 
 
@@ -151,17 +160,21 @@ object ArrayIndexImpl:
       b
     }
 
-  private def foreachInRange(start: Int, end: Int)(f: Int => Expr[Unit])(using Quotes): Expr[Unit] = {
+  private def foreachInRange(start: Int, end: Int)(f: Int => Expr[Unit])(using Quotes): Expr[Unit] =
     @tailrec def unroll(i: Int, acc: Expr[Unit]): Expr[Unit] =
       if (i < end) unroll(i + 1, '{ $acc; ${f(i)} }) else acc
     if (start < end) unroll(start + 1, f(start)) else '{}
-  }
 
+
+object ConstantListImpl:
+  def toTuple22(l: Expr[List[Any]])(using Quotes): Expr[Tuple] =
+    Expr.ofTupleFromSeq(unlist(l).get)
 
 object ConstantTupleImpl:
   def forEachUnrolled[Tup <: Tuple : Type](t: Expr[Tup], f: Expr[Any => Unit])(using Quotes): Expr[Unit] =
-    ???
-
+    val bseq = untuple[Any](t)
+    val exprs = bseq.map(arg => betaReduceFixE('{ $f($arg) }))
+    Expr.block(exprs.init.toList, exprs.last)
 
   def mapUnrolled[Tup <: Tuple : Type, F[_] : Type](t: Expr[Tup], f: Expr[[X] => X => F[X]])(using Quotes): Expr[Tuple.Map[Tup, F]] =
     val bseq = untuple[Any](t)
@@ -179,11 +192,11 @@ object ConstantTupleImpl:
 object ConstantArgsImpl:
   def forEachUnrolled(t: Expr[Seq[Any]], f: Expr[Any => Unit])(using Quotes): Expr[Unit] =
     import quotes.reflect.*
-    val Varargs(args) = t
+    val Varargs(args) = t: @unchecked
     val exprs = args.map(arg => betaReduceFixE('{ $f($arg) }))
     Expr.block(exprs.init.toList, exprs.last)
 
   def toTup(t: Expr[Seq[Any]])(using Quotes): Expr[Tuple] =
     import quotes.reflect.*
-    val Varargs(args) = t
+    val Varargs(args) = t: @unchecked
     Expr.ofTupleFromSeq(args)

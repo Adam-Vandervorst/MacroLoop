@@ -1,5 +1,4 @@
 import munit.FunSuite
-
 import macroloop.*
 
 
@@ -116,11 +115,21 @@ class LiteralArrayIndex extends LiteralFunSuite:
   }
 
 class LiteralConstantTuple extends LiteralFunSuite:
-  test("forEachUnrolled".ignore) {
-//    transparent inline def t1 = 'a' *: 1 *: 0 *: EmptyTuple
-//    transparent inline def t2: ('a', 1, 0) = ('a', 1, 0)
+  test("forEachUnrolled TupleN") {
+    assertCodeMatches(ConstantTuple.forEachUnrolled(ConstantList.toTuple22(ConstantTuple.constToList['a' *: 1 *: 2 *: EmptyTuple]))(println), {
+      println('a')
+      println(1)
+      println(2)
+    }: Unit)
+  }
 
-//    ConstantTuple.forEachUnrolled('a' *: 1 *: 0 *: EmptyTuple)(println)
+  test("forEachUnrolled Tuple22") {
+    assertCodeMatches(ConstantTuple.forEachUnrolled(('a', 1, None))(println), {
+      println('a')
+      println(1)
+      val v = None
+      println(v)
+    }: Unit)
   }
 
 
