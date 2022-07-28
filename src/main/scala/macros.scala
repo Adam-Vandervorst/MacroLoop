@@ -4,6 +4,8 @@ import quoted.*
 import scala.annotation.tailrec
 import compiletime.*
 
+import macroloop.utils.*
+
 def showImpl(e: Expr[Any])(using Quotes): Expr[String] =
   import quotes.reflect.*
   Expr(e.asTerm.show(using Printer.TreeShortCode))
@@ -66,6 +68,8 @@ def tupleFromExprSmall[Tup <: NonEmptyTuple](e: Expr[Tup])(using Quotes): Tuple.
   case '{ Tuple3($x, $y, $z) } => (x, y, z).asInstanceOf
   case '{ Tuple4($x, $y, $z, $w) } => (x, y, z, w).asInstanceOf
 
+def betaReduceFixE[T](e: Expr[T])(using Quotes): Expr[T] = fix((x: Expr[T]) => Expr.betaReduce(x))(e)
+
 
 object Break extends Exception
 
@@ -73,16 +77,14 @@ object Break extends Exception
 object IntRangeImpl:
   def forEachUnrolled(start: Expr[Int], stop: Expr[Int], step: Expr[Int], f: Expr[Int => Unit])(using Quotes): Expr[Unit] =
     val range = Range(start.valueOrAbort, stop.valueOrAbort, step.valueOrAbort)
-    val exprs = range.map(Expr(_)).map(i => Expr.betaReduce('{ $f($i) }))
+    val exprs = range.map(Expr(_)).map(i => betaReduceFixE('{ $f($i) }))
     Expr.block(exprs.init.toList, exprs.last)
 
   def forEach(start: Expr[Int], stop: Expr[Int], step: Expr[Int], f: Expr[Int => Unit])(using Quotes): Expr[Unit] =
     '{
       var i = $start
       while i < $stop do
-        ${
-          Expr.betaReduce('{ $f(i) })
-        }
+        ${ betaReduceFixE('{ $f(i) }) }
         i += $step
     }
 
@@ -91,7 +93,7 @@ object IterableItImpl:
     val it: Iterator[T] = $ito.iterator
     while it.hasNext do
       val v = it.next()
-      ${ ef('v) }
+      ${ betaReduceFixE(ef('v)) }
   }
 
   def forEach[T : Type](ite: Expr[IterableOnce[T]], f: Expr[T => Unit])(using Quotes): Expr[Unit] =
@@ -106,9 +108,7 @@ object ArrayIndexImpl:
       val size = $a.length
       var i = 0
       while i < size do
-        ${
-           Expr.betaReduce('{ $f($a(i)) })
-        }
+        ${ betaReduceFixE('{ $f($a(i)) }) }
         i += 1
     }
 
@@ -119,11 +119,11 @@ object ArrayIndexImpl:
       val r = size % ${Expr(n)}
       var i = 0
       while i < r do
-        $f($a(i))
+        ${ betaReduceFixE('{ $f($a(i)) }) }
         i += 1
       while i < size do
-        $f($a(i))
-        ${ foreachInRange(1, n)(j => '{ $f($a(i + ${Expr(j)})) }) }
+        ${ betaReduceFixE('{ $f($a(i)) }) }
+        ${ foreachInRange(1, n)(j => betaReduceFixE('{ $f($a(i + ${Expr(j)})) })) }
         i += ${Expr(n)}
     }
 
@@ -133,7 +133,7 @@ object ArrayIndexImpl:
         val size = $a.length
         var i = 0
         while i < size do
-          if ${ Expr.betaReduce('{ $f($a(i)) })} then i += 1
+          if ${ betaReduceFixE('{ $f($a(i)) })} then i += 1
           else throw Break
         true
       catch
@@ -146,7 +146,7 @@ object ArrayIndexImpl:
       var b = true
       var i = 0
       while b && (i < size) do
-        if ${ Expr.betaReduce('{ $f($a(i)) })} then i += 1
+        if ${ betaReduceFixE('{ $f($a(i)) })} then i += 1
         else b = false
       b
     }
@@ -166,12 +166,12 @@ object ConstantTupleImpl:
   def mapUnrolled[Tup <: Tuple : Type, F[_] : Type](t: Expr[Tup], f: Expr[[X] => X => F[X]])(using Quotes): Expr[Tuple.Map[Tup, F]] =
     val bseq = untuple[Any](t)
     // BetaReduce doesn't work on poly functions yet!
-    val rseq = bseq.map(arg => Expr.betaReduce('{ $f($arg) }))
+    val rseq = bseq.map(arg => '{ $f($arg) })
     Expr.ofTupleFromSeq(rseq).asInstanceOf[Expr[Tuple.Map[Tup, F]]]
 
   def mapBoundedUnrolled[Tup <: Tuple : Type, B : Type, R : Type](t: Expr[Tup], f: Expr[B => R])(using Quotes): Expr[Tuple.Map[Tup, [_] =>> R]] =
     val bseq = untuple[B](t)
-    val rseq = bseq.map(arg => Expr.betaReduce(Expr.betaReduce(Expr.betaReduce('{ $f($arg) }))))
+    val rseq = bseq.map(arg => betaReduceFixE('{ $f($arg) }))
     Expr.ofTupleFromSeq(rseq).asInstanceOf[Expr[Tuple.Map[Tup, [_] =>> R]]]
 
 
@@ -180,7 +180,7 @@ object ConstantArgsImpl:
   def forEachUnrolled(t: Expr[Seq[Any]], f: Expr[Any => Unit])(using Quotes): Expr[Unit] =
     import quotes.reflect.*
     val Varargs(args) = t
-    val exprs = args.map(arg => Expr.betaReduce('{ $f($arg) }))
+    val exprs = args.map(arg => betaReduceFixE('{ $f($arg) }))
     Expr.block(exprs.init.toList, exprs.last)
 
   def toTup(t: Expr[Seq[Any]])(using Quotes): Expr[Tuple] =
