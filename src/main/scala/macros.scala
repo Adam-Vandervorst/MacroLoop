@@ -163,23 +163,6 @@ object ConstantTupleImpl:
     ???
 
 
-  /*
-  type ReWrap[X, F[_], G[_]] = X match
-    case G[t] => G[F[t]]
-    case _ => Nothing
-
-  given simplify_rewrap[T <: Tuple, F[_], G[_]]: (Tuple.Map[Tuple.Map[T, F], [X] =>> ReWrap[X, F, G]] =:= Tuple.Map[T, [X] =>> F[G[X]]]) = summon
-  given simplify_map_map[T <: Tuple, F[_], G[_]]: (Tuple.Map[T, [X] =>> F[G[X]]] =:= Tuple.Map[Tuple.Map[T, G], F]) = summon
-  given [T <: Tuple, F[_]]: (Tuple.Map[Tuple.InverseMap[T, F], F] =:= T) = summon
-
-def mapUnrolled[Tup <: NonEmptyTuple : Type, F[_] : Type](t: Expr[Tup], f: Expr[[X] => X => F[X]])(using Quotes): Expr[Tuple.Map[Tup, F]] =
-    val tup = tupleFromExprSmall(t)
-    val tupf: Tuple.Map[tup.type, [T] =>> ReWrap[T, Expr, F]] = tup.map[[T] =>> ReWrap[T, Expr, F]]([T] => (et: T) => et.asInstanceOf[Expr[_]] match
-      case '{ ($e: t) } => Expr.betaReduce('{ $f($e) }).asInstanceOf
-    )
-    Expr.ofTuple(tupf)
-*/
-
   def mapUnrolled[Tup <: Tuple : Type, F[_] : Type](t: Expr[Tup], f: Expr[[X] => X => F[X]])(using Quotes): Expr[Tuple.Map[Tup, F]] =
     val bseq = untuple[Any](t)
     // BetaReduce doesn't work on poly functions yet!
@@ -191,33 +174,6 @@ def mapUnrolled[Tup <: NonEmptyTuple : Type, F[_] : Type](t: Expr[Tup], f: Expr[
     val rseq = bseq.map(arg => Expr.betaReduce(Expr.betaReduce(Expr.betaReduce('{ $f($arg) }))))
     Expr.ofTupleFromSeq(rseq).asInstanceOf[Expr[Tuple.Map[Tup, [_] =>> R]]]
 
-////  def mapPFCompiletime[Tup <: Tuple, R : Type](t: Expr[Tup], f: Expr[PartialFunction[Any, R]])(using Quotes): Expr[Tuple.Map[Tup, [_] =>> R]] =
-////    val bseq = untuple[Any](t)
-//
-//    import quotes.reflect.*
-//    def inlinedDefDef(t: Term) =
-//      t match
-//        case Inlined(_, _, Block(t::Nil, _)) => t
-//
-//    def DefDefBody(t: Statement) =
-//      t match
-//        case DefDef(_, _::Nil, _, Some(r)) => r
-//
-//    def evalMatch(t: Statement, a: Term) =
-//      t match
-//        case Match(_, cs) =>
-//          Match(a, cs)
-//
-//    println(evalMatch(DefDefBody(inlinedDefDef(f.asTerm))).asExprOf[Option[Any]])
-//    println('{ $f(${bseq.last}) }.show)
-//    println(Expr.betaReduce(Expr.betaReduce('{ $f(${bseq.last}) })).show)
-//    val rseq = bseq.map(arg => arg.asTerm)
-//    rseq.foreach(println)
-
-    //    val bseq = constValueTuple[Tup]
-//    val rseq = bseq.map(fv)
-//    Expr(rseq)
-//    ???
 
 
 object ConstantArgsImpl:
