@@ -24,6 +24,14 @@ def simplifyTrivialInline(using q: Quotes)(x: q.reflect.Term, simplifyNamed: Boo
       case _ => super.transformTerm(tree)(owner)
   rewr.transformTerm(x)(Symbol.spliceOwner)
 
+def constantFoldSelected(using q: Quotes)(x: q.reflect.Term, reduction: (q.reflect.Symbol, String) => Option[q.reflect.Term]): q.reflect.Term =
+  import quotes.reflect.*
+  val rewr = new q.reflect.TreeMap:
+    override def transformTerm(tree: Term)(owner: Symbol): Term = tree match
+      case s @ Select(q, name) => reduction(q.symbol, name).fold(Select.copy(tree)(transformTerm(q)(owner), name))(transformTerm(_)(owner))
+      case _ => super.transformTerm(tree)(owner)
+  rewr.transformTerm(x)(Symbol.spliceOwner)
+
 def gatherValDefSymbols(using q: Quotes)(x: q.reflect.Term): List[q.reflect.Symbol] =
   import collection.mutable.ListBuffer
   import quotes.reflect.*
@@ -67,12 +75,27 @@ def untuple[B : Type](e: Expr[Tuple])(using Quotes): Seq[Expr[B]] =
     case _ => report.errorAndAbort(s"couldn't untuple tree ${tree.show}")
   rec(e.asTerm)
 
-def tupleToExpr[Tup <: Tuple : Type](t: Tuple.Map[Tup, Expr])(using q: Quotes): Expr[Tup] =
-  import q.reflect.*
+def tupleToExpr[Tup <: Tuple : Type](t: Tuple.Map[Tup, Expr])(using Quotes): Expr[Tup] =
+  import quotes.reflect.*
   val terms = t.productIterator.map(_.asInstanceOf[Expr[Any]].asTerm).toList
   val types = terms.map(_.tpe.widen)
   val tupleObject = Seq('{Tuple1}, '{Tuple2}, '{Tuple3}, '{Tuple4}, '{Tuple5}, '{Tuple6}, '{Tuple7}, '{Tuple8}, '{Tuple9}, '{Tuple10})(terms.length - 1)
-  Apply(TypeApply(Select.unique(tupleObject.asTerm, "apply"), types.map(Inferred(_))), terms).asExprOf[Tup]
+  val tupleApply = Select.unique(tupleObject.asTerm, "apply")
+  Apply(TypeApply(tupleApply, types.map(Inferred(_))), terms).asExprOf[Tup]
+
+def lambdaDestruct(using q: Quotes)(f: q.reflect.Term): (q.reflect.Symbol, q.reflect.Term) =
+  import quotes.reflect.*
+  simplifyTrivialInline(f) match
+    case Block(List(DefDef(_, List(TermParamClause(List(vdef))), _, Some(body))), _: q.reflect.Closure) => (vdef.symbol, body)
+
+def applyTupleDestruct[Tup <: Tuple : Type, R : Type](t: Tuple.Map[Tup, Expr], f: Expr[Tup => R])(using q: Quotes): Expr[R] =
+  import quotes.reflect.*
+  import reflect.Selectable.reflectiveSelectable
+  val (symbol, body) = lambdaDestruct(f.asTerm)
+  val reduced = constantFoldSelected(body, (x, n) =>
+    Option.when(symbol == x)(t.asInstanceOf[Tuple.Map[Tup, Expr] & Selectable].selectDynamic(n).asInstanceOf[Expr[Any]].asTerm))
+  // TODO constant fold apply too
+  reduced.asExprOf[R]
 
 import quoted.FromExpr.BooleanFromExpr
 val PrimitiveFromExpr = quoted.FromExpr.BooleanFromExpr.asInstanceOf[FromExpr[Const]]
@@ -121,7 +144,7 @@ object IterableItImpl:
   def forallExceptionCart[Tup <: Tuple : Type](tite: Expr[Tuple.Map[Tup, Iterable]], f: Expr[Tup => Boolean])(using Quotes): Expr[Boolean] =
     val seq = untuple[Iterable[Any]](tite)
     def unroll[I <: Int : Type](ites: Seq[Expr[Iterable[Any]]], args: Tuple): Expr[Unit] = ites match
-      case Nil => '{ if !${ betaReduceFixE('{ $f(${ tupleToExpr[Tup](args.asInstanceOf) }) }) } then throw Break }
+      case Nil => '{ if !${ applyTupleDestruct[Tup, Boolean](args.asInstanceOf, f) } then throw Break }
       case ite::ites => forEachE(ite.asExprOf[Iterable[Tuple.Elem[Tup, I]]], et => unroll[S[I]](ites, args :* et))
     '{
       try

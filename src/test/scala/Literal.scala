@@ -84,18 +84,15 @@ class LiteralIt extends LiteralFunSuite:
     assertCodeMatches(IterableIt.forallExceptionCart[(Char, Int, Int)]((list, array, range))(t => t._2*t._3 <= 10), {
       try
         val xit: Iterator[Char] = list.iterator
-        while (xit.hasNext) {
+        while xit.hasNext do
           val x: Char = xit.next()
           val yit: Iterator[Int] = wrapIntArray(array).iterator
-          while (yit.hasNext) {
+          while yit.hasNext do
             val y: Int = yit.next()
             val zit: Iterator[Int] = range.iterator
-            while (zit.hasNext) {
+            while zit.hasNext do
               val z: Int = zit.next()
-              if !{val t = (x, y, z); t._2*t._3 <= 10} then throw Break
-            }
-          }
-        }
+              if !(y*z <= 10) then throw Break
         true
       catch
         case Break => false
