@@ -118,6 +118,19 @@ object IterableItImpl:
       case ite::ites => forEachE(ite.asExprOf[Iterable[Tuple.Elem[Tup, I]]], et => unroll[S[I]](ites, args :* et))
     unroll[0](seq, EmptyTuple)
 
+  def forallExceptionCart[Tup <: Tuple : Type](tite: Expr[Tuple.Map[Tup, Iterable]], f: Expr[Tup => Boolean])(using Quotes): Expr[Boolean] =
+    val seq = untuple[Iterable[Any]](tite)
+    def unroll[I <: Int : Type](ites: Seq[Expr[Iterable[Any]]], args: Tuple): Expr[Unit] = ites match
+      case Nil => '{ if !${ betaReduceFixE('{ $f(${ tupleToExpr[Tup](args.asInstanceOf) }) }) } then throw Break }
+      case ite::ites => forEachE(ite.asExprOf[Iterable[Tuple.Elem[Tup, I]]], et => unroll[S[I]](ites, args :* et))
+    '{
+      try
+        ${ unroll[0](seq, EmptyTuple) }
+        true
+      catch
+        case Break => false
+    }
+
 object ArrayIndexImpl:
   def forEach[T : Type](a: Expr[Array[T]], f: Expr[T => Unit])(using Quotes): Expr[Unit] =
     '{

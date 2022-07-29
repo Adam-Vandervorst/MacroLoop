@@ -26,6 +26,9 @@ object IterableIt:
   inline def forEachCart[Tup <: Tuple](inline tite: Tuple.Map[Tup, Iterable])(inline f: Tup => Unit): Unit =
     ${ IterableItImpl.forEachCart('tite, 'f) }
 
+  inline def forallExceptionCart[Tup <: Tuple](inline tite: Tuple.Map[Tup, Iterable])(inline f: Tup => Boolean): Boolean =
+    ${ IterableItImpl.forallExceptionCart('tite, 'f) }
+
 
 object ArrayIndex:
   inline def forEach[T](inline a: Array[T])(inline f: T => Unit): Unit =

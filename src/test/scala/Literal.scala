@@ -52,7 +52,7 @@ class LiteralIt extends LiteralFunSuite:
     }: Unit)
   }
 
-  test("forEachCart".only) {
+  test("forEachCart") {
     val list = List('a', 'b', 'c')
     val range = List.range(1, 10)
     val array = Array(1, 2, 3)
@@ -73,6 +73,33 @@ class LiteralIt extends LiteralFunSuite:
         }
       }
     }: Unit)
+  }
+
+  test("forallExceptionCart") {
+    import macroloop.macros.Break
+    val list = List('a', 'b', 'c')
+    val range = List.range(1, 10)
+    val array = Array(1, 2, 3)
+
+    assertCodeMatches(IterableIt.forallExceptionCart[(Char, Int, Int)]((list, array, range))(t => t._2*t._3 <= 10), {
+      try
+        val xit: Iterator[Char] = list.iterator
+        while (xit.hasNext) {
+          val x: Char = xit.next()
+          val yit: Iterator[Int] = wrapIntArray(array).iterator
+          while (yit.hasNext) {
+            val y: Int = yit.next()
+            val zit: Iterator[Int] = range.iterator
+            while (zit.hasNext) {
+              val z: Int = zit.next()
+              if !{val t = (x, y, z); t._2*t._3 <= 10} then throw Break
+            }
+          }
+        }
+        true
+      catch
+        case Break => false
+    }: Boolean)
   }
 
 class LiteralArrayIndex extends LiteralFunSuite:
