@@ -52,6 +52,10 @@ def renameBoundFrom(using q: Quotes)(toRename: q.reflect.Term, niceNames: q.refl
   val mapping = (sourceNames zip targetNames).toMap
   translateRefs(mapping)(toRename)
 
+def unlist(xs: Expr[List[Any]])(using Quotes): List[Expr[Any]] = xs match
+  case '{ $x :: ($xs: List[Any]) } => x :: unlist(xs)
+  case '{ Nil } => Nil
+
 def untuple[B : Type](e: Expr[Tuple])(using Quotes): Seq[Expr[B]] =
   import quotes.reflect.*
   def rec(tree: Term): Seq[Expr[B]] = tree match
@@ -64,32 +68,27 @@ def untuple[B : Type](e: Expr[Tuple])(using Quotes): Seq[Expr[B]] =
   rec(e.asTerm)
 
 def tupleFromExprSmall[Tup <: NonEmptyTuple](e: Expr[Tup])(using Quotes): Tuple.Map[Tup, Expr] = e match
-  case '{ Tuple1($x) } => Tuple(x).asInstanceOf
-  case '{ Tuple2($x, $y) } => (x, y).asInstanceOf
-  case '{ Tuple3($x, $y, $z) } => (x, y, z).asInstanceOf
-  case '{ Tuple4($x, $y, $z, $w) } => (x, y, z, w).asInstanceOf
+  case '{ Tuple1($a) } => Tuple(a).asInstanceOf
+  case '{ Tuple2($a, $b) } => (a, b).asInstanceOf
+  case '{ Tuple3($a, $b, $c) } => (a, b, c).asInstanceOf
+  case '{ Tuple4($a, $b, $c, $d) } => (a, b, c, d).asInstanceOf
+  case '{ Tuple5($a, $b, $c, $d, $e) } => (a, b, c, d, e).asInstanceOf
+
+def tupleToExprSmall[Tup <: Tuple : Type](t: Tuple.Map[Tup, Expr])(using Quotes): Expr[Tup] = t match
+  case Tuple1(a: Expr[Tuple.Elem[Tup, 0]]) => '{ Tuple1($a) }.asExprOf[Tup]
+  case Tuple2(a: Expr[Tuple.Elem[Tup, 0]], b: Expr[Tuple.Elem[Tup, 1]]) => '{ Tuple2($a, $b) }.asExprOf[Tup]
+  case Tuple3(a: Expr[Tuple.Elem[Tup, 0]], b: Expr[Tuple.Elem[Tup, 1]], c: Expr[Tuple.Elem[Tup, 2]]) => '{ Tuple3($a, $b, $c) }.asExprOf[Tup]
+  case Tuple4(a: Expr[Tuple.Elem[Tup, 0]], b: Expr[Tuple.Elem[Tup, 1]], c: Expr[Tuple.Elem[Tup, 2]], d: Expr[Tuple.Elem[Tup, 3]]) => '{ Tuple4($a, $b, $c, $d) }.asExprOf[Tup]
+  case Tuple5(a: Expr[Tuple.Elem[Tup, 0]], b: Expr[Tuple.Elem[Tup, 1]], c: Expr[Tuple.Elem[Tup, 2]], d: Expr[Tuple.Elem[Tup, 3]], e: Expr[Tuple.Elem[Tup, 4]]) => '{ Tuple5($a, $b, $c, $d, $e) }.asExprOf[Tup]
 
 import quoted.FromExpr.BooleanFromExpr
 val PrimitiveFromExpr = quoted.FromExpr.BooleanFromExpr.asInstanceOf[FromExpr[Const]]
-
-def unlist(xs: Expr[List[Any]])(using Quotes): Option[List[Expr[Any]]] = xs match
-  case '{ $x :: ($xs1: List[Any]) } =>
-    for tail <- unlist(xs1) yield x :: tail
-  case '{ Nil } => Some(Nil)
-  case _ => None
 
 def betaReduceFixE[T](e: Expr[T])(using Quotes): Expr[T] = fix((x: Expr[T]) => Expr.betaReduce(x))(e)
 
 
 object Break extends Exception
 
-def typedTupleExpr[Tup <: Tuple : Type](t: Tuple.Map[Tup, Expr])(using Quotes): Expr[Tup] =
-  t match
-    case Tuple1(a: Expr[Tuple.Elem[Tup, 0]]) => '{ Tuple1($a) }.asExprOf[Tup]
-    case (a: Expr[Tuple.Elem[Tup, 0]], b: Expr[Tuple.Elem[Tup, 1]]) => '{ Tuple2($a, $b) }.asExprOf[Tup]
-    case (a: Expr[Tuple.Elem[Tup, 0]], b: Expr[Tuple.Elem[Tup, 1]], c: Expr[Tuple.Elem[Tup, 2]]) => '{ Tuple3($a, $b, $c) }.asExprOf[Tup]
-    case (a: Expr[Tuple.Elem[Tup, 0]], b: Expr[Tuple.Elem[Tup, 1]], c: Expr[Tuple.Elem[Tup, 2]], d: Expr[Tuple.Elem[Tup, 3]]) => '{ Tuple4($a, $b, $c, $d) }.asExprOf[Tup]
-    case (a: Expr[Tuple.Elem[Tup, 0]], b: Expr[Tuple.Elem[Tup, 1]], c: Expr[Tuple.Elem[Tup, 2]], d: Expr[Tuple.Elem[Tup, 3]], e: Expr[Tuple.Elem[Tup, 4]]) => '{ Tuple5($a, $b, $c, $d, $e) }.asExprOf[Tup]
 
 object IntRangeImpl:
   def forEachUnrolled(start: Expr[Int], stop: Expr[Int], step: Expr[Int], f: Expr[Int => Unit])(using Quotes): Expr[Unit] =
@@ -122,7 +121,7 @@ object IterableItImpl:
   def forEachCart[Tup <: Tuple : Type](tite: Expr[Tuple.Map[Tup, Iterable]], f: Expr[Tup => Unit])(using Quotes): Expr[Unit] =
     val seq = untuple[Iterable[Any]](tite)
     def unroll[I <: Int : Type](ites: Seq[Expr[Iterable[Any]]], args: Tuple): Expr[Unit] = ites match
-      case Nil => '{ $f(${ typedTupleExpr[Tup](args.asInstanceOf) }) }
+      case Nil => '{ $f(${ tupleToExprSmall[Tup](args.asInstanceOf) }) }
       case ite::ites => forEachE(ite.asExprOf[Iterable[Tuple.Elem[Tup, I]]], et => unroll[S[I]](ites, args :* et))
     unroll[0](seq, EmptyTuple)
 
@@ -182,7 +181,7 @@ object ArrayIndexImpl:
 
 object ConstantListImpl:
   def toTuple22(l: Expr[List[Any]])(using Quotes): Expr[Tuple] =
-    Expr.ofTupleFromSeq(unlist(l).get)
+    Expr.ofTupleFromSeq(unlist(l))
 
 object ConstantTupleImpl:
   def forEachUnrolled[Tup <: Tuple : Type](t: Expr[Tup], f: Expr[Any => Unit])(using Quotes): Expr[Unit] =
