@@ -67,19 +67,12 @@ def untuple[B : Type](e: Expr[Tuple])(using Quotes): Seq[Expr[B]] =
     case _ => report.errorAndAbort(s"couldn't untuple tree ${tree.show}")
   rec(e.asTerm)
 
-def tupleFromExprSmall[Tup <: NonEmptyTuple](e: Expr[Tup])(using Quotes): Tuple.Map[Tup, Expr] = e match
-  case '{ Tuple1($a) } => Tuple(a).asInstanceOf
-  case '{ Tuple2($a, $b) } => (a, b).asInstanceOf
-  case '{ Tuple3($a, $b, $c) } => (a, b, c).asInstanceOf
-  case '{ Tuple4($a, $b, $c, $d) } => (a, b, c, d).asInstanceOf
-  case '{ Tuple5($a, $b, $c, $d, $e) } => (a, b, c, d, e).asInstanceOf
-
-def tupleToExprSmall[Tup <: Tuple : Type](t: Tuple.Map[Tup, Expr])(using Quotes): Expr[Tup] = t match
-  case Tuple1(a: Expr[Tuple.Elem[Tup, 0]]) => '{ Tuple1($a) }.asExprOf[Tup]
-  case Tuple2(a: Expr[Tuple.Elem[Tup, 0]], b: Expr[Tuple.Elem[Tup, 1]]) => '{ Tuple2($a, $b) }.asExprOf[Tup]
-  case Tuple3(a: Expr[Tuple.Elem[Tup, 0]], b: Expr[Tuple.Elem[Tup, 1]], c: Expr[Tuple.Elem[Tup, 2]]) => '{ Tuple3($a, $b, $c) }.asExprOf[Tup]
-  case Tuple4(a: Expr[Tuple.Elem[Tup, 0]], b: Expr[Tuple.Elem[Tup, 1]], c: Expr[Tuple.Elem[Tup, 2]], d: Expr[Tuple.Elem[Tup, 3]]) => '{ Tuple4($a, $b, $c, $d) }.asExprOf[Tup]
-  case Tuple5(a: Expr[Tuple.Elem[Tup, 0]], b: Expr[Tuple.Elem[Tup, 1]], c: Expr[Tuple.Elem[Tup, 2]], d: Expr[Tuple.Elem[Tup, 3]], e: Expr[Tuple.Elem[Tup, 4]]) => '{ Tuple5($a, $b, $c, $d, $e) }.asExprOf[Tup]
+def tupleToExpr[Tup <: Tuple : Type](t: Tuple.Map[Tup, Expr])(using q: Quotes): Expr[Tup] =
+  import q.reflect.*
+  val terms = t.productIterator.map(_.asInstanceOf[Expr[Any]].asTerm).toList
+  val types = terms.map(_.tpe.widen)
+  val tupleObject = Seq('{Tuple1}, '{Tuple2}, '{Tuple3}, '{Tuple4}, '{Tuple5}, '{Tuple6}, '{Tuple7}, '{Tuple8}, '{Tuple9}, '{Tuple10})(terms.length - 1)
+  Apply(TypeApply(Select.unique(tupleObject.asTerm, "apply"), types.map(Inferred(_))), terms).asExprOf[Tup]
 
 import quoted.FromExpr.BooleanFromExpr
 val PrimitiveFromExpr = quoted.FromExpr.BooleanFromExpr.asInstanceOf[FromExpr[Const]]
@@ -121,7 +114,7 @@ object IterableItImpl:
   def forEachCart[Tup <: Tuple : Type](tite: Expr[Tuple.Map[Tup, Iterable]], f: Expr[Tup => Unit])(using Quotes): Expr[Unit] =
     val seq = untuple[Iterable[Any]](tite)
     def unroll[I <: Int : Type](ites: Seq[Expr[Iterable[Any]]], args: Tuple): Expr[Unit] = ites match
-      case Nil => '{ $f(${ tupleToExprSmall[Tup](args.asInstanceOf) }) }
+      case Nil => '{ $f(${ tupleToExpr[Tup](args.asInstanceOf) }) }
       case ite::ites => forEachE(ite.asExprOf[Iterable[Tuple.Elem[Tup, I]]], et => unroll[S[I]](ites, args :* et))
     unroll[0](seq, EmptyTuple)
 
