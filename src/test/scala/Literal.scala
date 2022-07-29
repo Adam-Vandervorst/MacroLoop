@@ -27,10 +27,10 @@ class LiteralIntRange extends LiteralFunSuite:
 
 class LiteralIt extends LiteralFunSuite:
   test("forEach") {
-    val listIt = List('a', 'b', 'c')
+    val list = List('a', 'b', 'c')
 
-    assertCodeMatches(IterableIt.forEach(listIt)(println), {
-      val it = listIt.iterator
+    assertCodeMatches(IterableIt.forEach(list)(println), {
+      val it = list.iterator
       while it.hasNext do
         val v = it.next()
         println(v)
@@ -38,17 +38,40 @@ class LiteralIt extends LiteralFunSuite:
   }
 
   test("forEachCart2") {
-    val listIt = List('a', 'b', 'c')
-    val rangeIt = List.range(1, 10)
+    val list = List('a', 'b', 'c')
+    val range = List.range(1, 10)
 
-    assertCodeMatches(IterableIt.forEachCart2(rangeIt, listIt)((c, i) => println((c, i))), {
-      val it1 = rangeIt.iterator
+    assertCodeMatches(IterableIt.forEachCart2(range, list)((c, i) => println((c, i))), {
+      val it1 = range.iterator
       while it1.hasNext do
         val v1 = it1.next()
-        val it2 = listIt.iterator
+        val it2 = list.iterator
         while it2.hasNext do
           val v2 = it2.next()
           println((v1, v2))
+    }: Unit)
+  }
+
+  test("forEachCart".only) {
+    val list = List('a', 'b', 'c')
+    val range = List.range(1, 10)
+    val array = Array(1, 2, 3)
+
+    assertCodeMatches(IterableIt.forEachCart[(Char, Int, Int)]((list, array, range))(println), {
+      val xit: Iterator[Char] = list.iterator
+      while (xit.hasNext) {
+        val x: Char = xit.next()
+        val yit: Iterator[Int] = wrapIntArray(array).iterator
+        while (yit.hasNext) {
+          val y: Int = yit.next()
+          val zit: Iterator[Int] = range.iterator
+          while (zit.hasNext) {
+            val z: Int = zit.next()
+            val v = (x, y, z)
+            println(v)
+          }
+        }
+      }
     }: Unit)
   }
 

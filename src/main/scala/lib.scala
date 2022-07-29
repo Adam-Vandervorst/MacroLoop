@@ -23,6 +23,10 @@ object IterableIt:
   inline def forEachCart2[T1, T2](it1: IterableOnce[T1], it2: Iterable[T2])(inline f: (T1, T2) => Unit): Unit =
     ${ IterableItImpl.forEachCart2('it1, 'it2, 'f) }
 
+  inline def forEachCart[Tup <: Tuple](inline tite: Tuple.Map[Tup, Iterable])(inline f: Tup => Unit): Unit =
+    ${ IterableItImpl.forEachCart('tite, 'f) }
+
+
 object ArrayIndex:
   inline def forEach[T](inline a: Array[T])(inline f: T => Unit): Unit =
     ${ ArrayIndexImpl.forEach('a, 'f) }

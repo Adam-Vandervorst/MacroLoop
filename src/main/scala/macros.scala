@@ -2,6 +2,7 @@ package macroloop.macros
 
 import quoted.*
 import scala.annotation.tailrec
+import compiletime.ops.int.S
 import compiletime.*
 
 import macroloop.utils.*
@@ -82,6 +83,13 @@ def betaReduceFixE[T](e: Expr[T])(using Quotes): Expr[T] = fix((x: Expr[T]) => E
 
 object Break extends Exception
 
+def typedTupleExpr[Tup <: Tuple : Type](t: Tuple.Map[Tup, Expr])(using Quotes): Expr[Tup] =
+  t match
+    case Tuple1(a: Expr[Tuple.Elem[Tup, 0]]) => '{ Tuple1($a) }.asExprOf[Tup]
+    case (a: Expr[Tuple.Elem[Tup, 0]], b: Expr[Tuple.Elem[Tup, 1]]) => '{ Tuple2($a, $b) }.asExprOf[Tup]
+    case (a: Expr[Tuple.Elem[Tup, 0]], b: Expr[Tuple.Elem[Tup, 1]], c: Expr[Tuple.Elem[Tup, 2]]) => '{ Tuple3($a, $b, $c) }.asExprOf[Tup]
+    case (a: Expr[Tuple.Elem[Tup, 0]], b: Expr[Tuple.Elem[Tup, 1]], c: Expr[Tuple.Elem[Tup, 2]], d: Expr[Tuple.Elem[Tup, 3]]) => '{ Tuple4($a, $b, $c, $d) }.asExprOf[Tup]
+    case (a: Expr[Tuple.Elem[Tup, 0]], b: Expr[Tuple.Elem[Tup, 1]], c: Expr[Tuple.Elem[Tup, 2]], d: Expr[Tuple.Elem[Tup, 3]], e: Expr[Tuple.Elem[Tup, 4]]) => '{ Tuple5($a, $b, $c, $d, $e) }.asExprOf[Tup]
 
 object IntRangeImpl:
   def forEachUnrolled(start: Expr[Int], stop: Expr[Int], step: Expr[Int], f: Expr[Int => Unit])(using Quotes): Expr[Unit] =
@@ -110,6 +118,13 @@ object IterableItImpl:
 
   def forEachCart2[T1 : Type, T2 : Type](ite1: Expr[IterableOnce[T1]], ite2: Expr[Iterable[T2]], f: Expr[(T1, T2) => Unit])(using Quotes): Expr[Unit] =
     forEachE(ite1, et1 => forEachE(ite2, et2 => '{ $f($et1, $et2) }))
+
+  def forEachCart[Tup <: Tuple : Type](tite: Expr[Tuple.Map[Tup, Iterable]], f: Expr[Tup => Unit])(using Quotes): Expr[Unit] =
+    val seq = untuple[Iterable[Any]](tite)
+    def unroll[I <: Int : Type](ites: Seq[Expr[Iterable[Any]]], args: Tuple): Expr[Unit] = ites match
+      case Nil => '{ $f(${ typedTupleExpr[Tup](args.asInstanceOf) }) }
+      case ite::ites => forEachE(ite.asExprOf[Iterable[Tuple.Elem[Tup, I]]], et => unroll[S[I]](ites, args :* et))
+    unroll[0](seq, EmptyTuple)
 
 object ArrayIndexImpl:
   def forEach[T : Type](a: Expr[Array[T]], f: Expr[T => Unit])(using Quotes): Expr[Unit] =
@@ -165,7 +180,6 @@ object ArrayIndexImpl:
       if (i < end) unroll(i + 1, '{ $acc; ${f(i)} }) else acc
     if (start < end) unroll(start + 1, f(start)) else '{}
 
-
 object ConstantListImpl:
   def toTuple22(l: Expr[List[Any]])(using Quotes): Expr[Tuple] =
     Expr.ofTupleFromSeq(unlist(l).get)
@@ -186,8 +200,6 @@ object ConstantTupleImpl:
     val bseq = untuple[B](t)
     val rseq = bseq.map(arg => betaReduceFixE('{ $f($arg) }))
     Expr.ofTupleFromSeq(rseq).asInstanceOf[Expr[Tuple.Map[Tup, [_] =>> R]]]
-
-
 
 object ConstantArgsImpl:
   def forEachUnrolled(t: Expr[Seq[Any]], f: Expr[Any => Unit])(using Quotes): Expr[Unit] =
