@@ -1,6 +1,5 @@
 package macroloop
 
-import macroloop.staging
 import macroloop.macros.*
 
 
@@ -62,8 +61,8 @@ object ConstantTuple:
   inline def mapBoundedUnrolled[Tup <: Tuple, B, R](inline t: Tup)(inline f: B => R): Tuple.Map[Tup, [_] =>> R] =
     ${ ConstantTupleImpl.mapBoundedUnrolled('t, 'f) }
 
-  inline def mapPFCompiletime[Tup <: NonEmptyTuple, R](inline t: Tup)(inline f: PartialFunction[Any, R]): Tuple.Map[Tup, [_] =>> R] =
-    ${ staging.ConstantTuple.mapPF('t, 'f) }
+//  inline def mapPFCompiletime[Tup <: NonEmptyTuple, R](inline t: Tup)(inline f: PartialFunction[Any, R]): Tuple.Map[Tup, [_] =>> R] =
+//    ${ staging.ConstantTuple.mapPF('t, 'f) }
 
 
 object ConstantArgs:

@@ -1,5 +1,3 @@
-package macroloop.port;
-
 import java.util.function.Function;
 
 public class ArrayIndex {
