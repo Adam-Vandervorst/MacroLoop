@@ -13,6 +13,13 @@ class Example extends FunSuite:
   val m2 = Matrix.from[3, 2, Int](Seq(3, 3, 5, 0, -3, 4))
   val m3 = Matrix.from[2, 2, Int](Seq(-21, 22, 159, 179))
 
+  val k1 = Matrix.from[2, 2, Int](Seq(1, 2, 3, 4))
+  val k2 = Matrix.from[2, 2, Int](Seq(0, 5, 6, 7))
+  val k3 = Matrix.from[4, 4, Int](Seq(0, 5, 0, 10,
+                                      6, 7, 12, 14,
+                                      0, 15, 0, 20,
+                                      18, 21, 24, 28))
+
   test("directional") {
     enum Pos { case TL, TR, BL, BR }
     println(g44.convolve(
@@ -35,5 +42,9 @@ class Example extends FunSuite:
 
   test("mm") {
     assert(m1.multiply(m2, _ * _, _ + _, 0) == m3)
+  }
+
+  test("kronecker") {
+    assert(k1.kronecker(k2, _ * _) == k3)
   }
 
