@@ -53,4 +53,6 @@ class Example extends FunSuite:
     assert(k1.hadamard(k2, _ * _) == k4)
   }
 
-
+  test("frobenius") {
+    assert(k1.frobenius(k2, _ * _, _ + _, 0) == k1.hadamard(k2, _ * _).data.sum)
+  }

@@ -61,7 +61,16 @@ class Matrix[M <: Int, N <: Int, A : ClassTag](val data: Array[A]):
       cdata(i) = combine(this.data(i), that.data(i))
       i += 1
     Matrix(cdata)
-  
+
+  inline def frobenius[B, C](that: Matrix[M, N, B],
+      inline combine: (A, B) => C, inline add: (C, C) => C, inline zero: C): C =
+    var c = zero
+    var i = 0
+    while i < nitems do
+      c = add(c, combine(this.data(i), that.data(i)))
+      i += 1
+    c
+
   inline def show: String = rows.map(row => row.mkString(",")).mkString("\n")
 
   override def equals(that: Any): Boolean = that match
