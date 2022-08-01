@@ -6,8 +6,11 @@ import compiletime.ops.int.*
 
 // row-major    rows      columns
 class Grid[M <: Int, N <: Int, A : ClassTag](val data: Array[A]):
+  inline def nrows: M = constValue
+  inline def ncolumns: N = constValue
+
   inline def apply(inline i: Int, inline j: Int): A = data(i*constValue[N] + j)
-  inline def update(pos: (Int, Int), v: A): Unit = data(pos._1*constValue[N] + pos._2) = v
+  inline def update(i: Int, j: Int, v: A): Unit = data(i*constValue[N] + j) = v
 
   inline def rows: Iterator[Array[A]] = data.grouped(constValue[N])
 
@@ -27,16 +30,30 @@ class Grid[M <: Int, N <: Int, A : ClassTag](val data: Array[A]):
     for i <- 0 until constValue[M]
         j <- 0 until constValue[N]
         m <- 0 until constValue[O]
-        n <- 0 until constValue[O] do
+        n <- 0 until constValue[P] do
       val ii = i + (m - cx)
       val jj = j + (n - cy)
 
       if ii >= 0 && ii < constValue[M] && jj >= 0 && jj < constValue[N] then
-        result((i, j)) = add(result(i, j), combine(this(ii, jj), kernel(m, n)))
+        result(i, j) = add(result(i, j), combine(this(ii, jj), kernel(m, n)))
+    result
 
+  inline def multiply[O <: Int, B, C : ClassTag](other: Grid[N, O, B],
+      inline combine: (A, B) => C, inline add: (C, C) => C, inline zero: C): Grid[M, O, C] =
+
+    val result = Grid.fill[M, O, C](zero)
+
+    for i <- 0 until constValue[M]
+        j <- 0 until constValue[O]
+        k <- 0 until constValue[N] do
+      result(i, j) = add(result(i, j), combine(this(i, k), other(k, j)))
     result
 
   inline def show: String = rows.map(row => row.mkString(",")).mkString("\n")
+
+  override def equals(that: Any): Boolean = that match
+    case that: Grid[m, n, _] => (this.data zip that.data).forall(_ == _)
+    case _ => false
 
 extension [M <: Int, N <: Int, O <: Int, P <: Int, A : ClassTag](nested: Grid[M, N, Grid[O, P, A]])
   inline def flatten: Grid[M*O, N*P, A] =

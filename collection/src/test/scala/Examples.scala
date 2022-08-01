@@ -9,6 +9,10 @@ class Example extends FunSuite:
 
   val g44 = g22.flatMap(i => Grid.from[2, 2, Int](Seq(i - 3, i - 2, i - 1, i)))
 
+  val m1 = Grid.from[2, 3, Int](Seq(2, -3, 4, 53, 3, 5))
+  val m2 = Grid.from[3, 2, Int](Seq(3, 3, 5, 0, -3, 4))
+  val m3 = Grid.from[2, 2, Int](Seq(-21, 22, 159, 179))
+
   test("directional") {
     enum Pos { case TL, TR, BL, BR }
     println(g44.convolve(
@@ -29,4 +33,7 @@ class Example extends FunSuite:
     println(Grid.tabulate[3, 4, Int]((i, j) => i*10 + j).flatMap(i => Grid.from[1, 2, Int](Seq(i, i*2))).show)
   }
 
+  test("mm") {
+    assert(m1.multiply(m2, _ * _, _ + _, 0) == m3)
+  }
 
