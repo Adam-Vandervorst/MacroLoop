@@ -8,6 +8,7 @@ import compiletime.ops.int.*
 class Matrix[M <: Int, N <: Int, A : ClassTag](val data: Array[A]):
   inline def nrows: M = constValue
   inline def ncolumns: N = constValue
+  inline def nitems: M*N = constValue
 
   inline def apply(inline i: Int, inline j: Int): A = data(i*ncolumns + j)
   inline def update(inline i: Int, inline j: Int, inline v: A): Unit = data(i*ncolumns + j) = v
@@ -52,6 +53,15 @@ class Matrix[M <: Int, N <: Int, A : ClassTag](val data: Array[A]):
       inline combine: (A, B) => C): Matrix[M*O, N*P, C] =
     this.flatMap(a => that.map(b => combine(a, b)))
 
+  inline def hadamard[B, C : ClassTag](that: Matrix[M, N, B],
+      inline combine: (A, B) => C): Matrix[M, N, C] =
+    val cdata = new Array[C](nitems)
+    var i = 0
+    while i < nitems do
+      cdata(i) = combine(this.data(i), that.data(i))
+      i += 1
+    Matrix(cdata)
+  
   inline def show: String = rows.map(row => row.mkString(",")).mkString("\n")
 
   override def equals(that: Any): Boolean = that match

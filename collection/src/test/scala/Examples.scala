@@ -19,6 +19,7 @@ class Example extends FunSuite:
                                       6, 7, 12, 14,
                                       0, 15, 0, 20,
                                       18, 21, 24, 28))
+  val k4 = Matrix.from[2, 2, Int](Seq(0, 10, 18, 28))
 
   test("directional") {
     enum Pos { case TL, TR, BL, BR }
@@ -47,4 +48,9 @@ class Example extends FunSuite:
   test("kronecker") {
     assert(k1.kronecker(k2, _ * _) == k3)
   }
+
+  test("hadamard") {
+    assert(k1.hadamard(k2, _ * _) == k4)
+  }
+
 
