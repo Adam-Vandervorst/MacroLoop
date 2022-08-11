@@ -2,7 +2,7 @@ import munit.FunSuite
 
 import macroloop.collection.*
 
-class MatrixBasic extends FunSuite:
+object TestMatrices:
   val g23 = Matrix.from[2, 3, Int](Seq(1, 3, 6, 1, 2, 4))
 
   val g22 = Matrix.from[2, 2, Int](Seq(4, 10, 16, 20))
@@ -16,10 +16,16 @@ class MatrixBasic extends FunSuite:
   val k1 = Matrix.from[2, 2, Int](Seq(1, 2, 3, 4))
   val k2 = Matrix.from[2, 2, Int](Seq(0, 5, 6, 7))
   val k3 = Matrix.from[4, 4, Int](Seq(0, 5, 0, 10,
-                                      6, 7, 12, 14,
-                                      0, 15, 0, 20,
-                                      18, 21, 24, 28))
+    6, 7, 12, 14,
+    0, 15, 0, 20,
+    18, 21, 24, 28))
   val k4 = Matrix.from[2, 2, Int](Seq(0, 10, 18, 28))
+
+  val s1 = Matrix.from[3, 3, -1 | 0 | 1](Seq(1, -1, 0, -1, 0, 1, 0, 1, -1))
+  val s2 = Matrix.from[3, 3, -1 | 0 | 1](Seq(-1, 0, 0, 0, 0, 0, 0, 0, 1))
+
+class MatrixBasic extends FunSuite:
+  import TestMatrices.*
 
   test("directional") {
     enum Pos { case TL, TR, BL, BR }
@@ -55,4 +61,20 @@ class MatrixBasic extends FunSuite:
 
   test("frobenius") {
     assert(k1.frobenius(k2, _ * _, _ + _, 0) == k1.hadamard(k2, _ * _).data.sum)
+  }
+
+  test("filterIndices slice") {
+    assert(g23.filterIndices((_, j) => j < 2) sameElements g23.slice[0, 2, 0, 2].data)
+  }
+
+  test("isSquare") {
+    assert(g22.isSquare)
+    assert(!g23.isSquare)
+  }
+
+  test("isSymmetric") {
+    assert(s1.isSymmetric)
+    assert(s2.isSymmetric)
+    assert(!k1.isSymmetric)
+    assert(!k2.isSymmetric)
   }

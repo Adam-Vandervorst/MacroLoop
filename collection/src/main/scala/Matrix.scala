@@ -15,6 +15,19 @@ class Matrix[M <: Int, N <: Int, A : ClassTag](val data: Array[A]):
 
   inline def rows: Iterator[Array[A]] = data.grouped(ncolumns)
 
+  inline def filterIndices(inline p: (Int, Int) => Boolean): Array[A] =
+    val data = Array.newBuilder
+    var j = 0
+    while j < nrows do
+      var i = 0
+      while i < ncolumns do
+        if p(j, i) then
+          data += this(j, i)
+        i += 1
+      j += 1
+    data.result()
+
+  inline def transpose: Matrix[N, M, A] = Matrix.tabulate((i, j) => this(j, i))
   inline def slice[I1 <: Int, I2 <: Int, J1 <: Int, J2 <: Int]: Matrix[I2 - I1, J2 - J1, A] =
     Matrix.tabulate((i, j) => this(constValue[I1] + i, constValue[J1] + j))
 
@@ -76,6 +89,13 @@ class Matrix[M <: Int, N <: Int, A : ClassTag](val data: Array[A]):
   override def equals(that: Any): Boolean = that match
     case that: Matrix[m, n, _] => this.data sameElements that.data
     case _ => false
+
+extension [M <: Int, N <: Int](m: Matrix[M, N, _])
+  inline def isSquare: Boolean = m.nrows == m.ncolumns
+
+extension [N <: Int, A : ClassTag](m: Matrix[N, N, A])
+  inline def diagonal: SizedVector[N, A] = SizedVector(m.filterIndices(_ == _))
+  inline def isSymmetric: Boolean = m == m.transpose
 
 extension [M <: Int, N <: Int, O <: Int, P <: Int, A : ClassTag](nested: Matrix[M, N, Matrix[O, P, A]])
   inline def flatten: Matrix[M*O, N*P, A] =
