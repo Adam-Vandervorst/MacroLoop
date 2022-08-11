@@ -2,7 +2,7 @@ import munit.FunSuite
 
 import macroloop.collection.*
 
-class Example extends FunSuite:
+class MatrixBasic extends FunSuite:
   val g23 = Matrix.from[2, 3, Int](Seq(1, 3, 6, 1, 2, 4))
 
   val g22 = Matrix.from[2, 2, Int](Seq(4, 10, 16, 20))

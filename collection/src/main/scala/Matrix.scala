@@ -74,7 +74,7 @@ class Matrix[M <: Int, N <: Int, A : ClassTag](val data: Array[A]):
   inline def show: String = rows.map(row => row.mkString(",")).mkString("\n")
 
   override def equals(that: Any): Boolean = that match
-    case that: Matrix[m, n, _] => (this.data zip that.data).forall(_ == _)
+    case that: Matrix[m, n, _] => this.data sameElements that.data
     case _ => false
 
 extension [M <: Int, N <: Int, O <: Int, P <: Int, A : ClassTag](nested: Matrix[M, N, Matrix[O, P, A]])
@@ -82,14 +82,17 @@ extension [M <: Int, N <: Int, O <: Int, P <: Int, A : ClassTag](nested: Matrix[
     val o = constValue[O]; val p = constValue[P]
     Matrix.tabulate[M*O, N*P, A]((i, j) => nested(i/o, j/p)(i%o, j%p))
 
-extension [M <: Int, N <: Int, A : ClassTag] (g: Matrix[M, N, A])(using n: Fractional[A])
+extension [M <: Int, N <: Int, A : ClassTag](g: Matrix[M, N, A])(using n: Fractional[A])
   inline def average: A = n.div(g.data.fold(n.zero)(n.plus), n.fromInt(g.data.length))
 
-extension [M <: Int, N <: Int, A : ClassTag] (g: Matrix[M, N, A])(using n: Ordering[A])
+extension [M <: Int, N <: Int, A : ClassTag](g: Matrix[M, N, A])(using n: Ordering[A])
   inline def median: A = g.data.sorted(using n)(g.data.length/2)
 
-
 object Matrix:
+  extension [A : ClassTag](m: Matrix[1, 1, A])
+    inline def singleElement: A = m(0, 0)
+  inline def asSingleElement[A : ClassTag](a: A): Matrix[1, 1, A] = Matrix(Array(a))
+
   inline def from[M <: Int, N <: Int, A : ClassTag](as: IterableOnce[A]): Matrix[M, N, A] = Matrix(Array.from(as))
 
   inline def tabulate[M <: Int, N <: Int, A : ClassTag](inline f: (Int, Int) => A): Matrix[M, N, A] =
