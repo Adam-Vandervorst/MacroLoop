@@ -1,8 +1,8 @@
-package macroloop.collection
+package be.adamv.macroloop.collection
 
+import scala.compiletime.constValue
+import scala.compiletime.ops.int.*
 import scala.reflect.ClassTag
-import compiletime.constValue
-import compiletime.ops.int.*
 
 
 class SizedVector[N <: Int, A : ClassTag](val data: Array[A]):
@@ -64,14 +64,6 @@ class SizedVector[N <: Int, A : ClassTag](val data: Array[A]):
     case that: SizedVector[n, _] => this.data sameElements that.data
     case _ => false
 
-extension [M <: Int, N <: Int, A : ClassTag](nested: SizedVector[M, SizedVector[N, A]])
-  inline def toMatrix: Matrix[M, N, A] =
-    Matrix.tabulate[M, N, A]((i, j) => nested(i)(j))
-
-extension [N <: Int, A : ClassTag](v: SizedVector[N, A])
-  inline def asRow: Matrix[1, N, A] = Matrix(v.data.clone())
-  inline def asColumn: Matrix[N, 1, A] = Matrix(v.data.clone())
-
 
 object SizedVector:
   extension [A : ClassTag](v: SizedVector[1, A])
@@ -90,3 +82,11 @@ object SizedVector:
     SizedVector(data)
 
   inline def fill[N <: Int, A : ClassTag](v: A): SizedVector[N, A] = SizedVector.tabulate(_ => v)
+
+  extension [M <: Int, N <: Int, A : ClassTag](nested: SizedVector[M, SizedVector[N, A]])
+    inline def toMatrix: Matrix[M, N, A] =
+      Matrix.tabulate[M, N, A]((i, j) => nested(i)(j))
+  
+  extension [N <: Int, A : ClassTag](v: SizedVector[N, A])
+    inline def asRow: Matrix[1, N, A] = Matrix(v.data.clone())
+    inline def asColumn: Matrix[N, 1, A] = Matrix(v.data.clone())

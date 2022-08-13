@@ -1,6 +1,5 @@
+import be.adamv.macroloop.collection.SizedVector
 import munit.FunSuite
-
-import macroloop.collection.*
 
 
 object TestVectors:

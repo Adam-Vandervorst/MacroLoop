@@ -1,6 +1,6 @@
 import munit.FunSuite
-import macroloop.*
 
+import be.adamv.macroloop.*
 
 class LiteralFunSuite extends FunSuite:
   inline def assertCodeMatches[T](inline obtained: T, inline expected: T): Unit =
@@ -76,7 +76,7 @@ class LiteralIt extends LiteralFunSuite:
   }
 
   test("forallExceptionCart") {
-    import macroloop.macros.Break
+    import be.adamv.macroloop.macros.Break
     val list = List('a', 'b', 'c')
     val range = List.range(1, 10)
     val array = Array(1, 2, 3)
@@ -134,7 +134,7 @@ class LiteralArrayIndex extends LiteralFunSuite:
   }
 
   test("forallException") {
-    import macroloop.macros.Break
+    import be.adamv.macroloop.macros.Break
     val a = Array(1, 2, 3)
     assertCodeMatches(ArrayIndex.forallException(a)(_ % 2 == 1), {
       try

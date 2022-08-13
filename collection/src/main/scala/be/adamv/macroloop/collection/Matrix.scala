@@ -1,8 +1,8 @@
-package macroloop.collection
+package be.adamv.macroloop.collection
 
+import scala.compiletime.constValue
+import scala.compiletime.ops.int.*
 import scala.reflect.ClassTag
-import compiletime.constValue
-import compiletime.ops.int.*
 
 
 class Matrix[M <: Int, N <: Int, A : ClassTag](val data: Array[A]):
@@ -90,23 +90,6 @@ class Matrix[M <: Int, N <: Int, A : ClassTag](val data: Array[A]):
     case that: Matrix[m, n, _] => this.data sameElements that.data
     case _ => false
 
-extension [M <: Int, N <: Int](m: Matrix[M, N, _])
-  inline def isSquare: Boolean = m.nrows == m.ncolumns
-
-extension [N <: Int, A : ClassTag](m: Matrix[N, N, A])
-  inline def diagonal: SizedVector[N, A] = SizedVector(m.filterIndices(_ == _))
-  inline def isSymmetric: Boolean = m == m.transpose
-
-extension [M <: Int, N <: Int, O <: Int, P <: Int, A : ClassTag](nested: Matrix[M, N, Matrix[O, P, A]])
-  inline def flatten: Matrix[M*O, N*P, A] =
-    val o = constValue[O]; val p = constValue[P]
-    Matrix.tabulate[M*O, N*P, A]((i, j) => nested(i/o, j/p)(i%o, j%p))
-
-extension [M <: Int, N <: Int, A : ClassTag](g: Matrix[M, N, A])(using n: Fractional[A])
-  inline def average: A = n.div(g.data.fold(n.zero)(n.plus), n.fromInt(g.data.length))
-
-extension [M <: Int, N <: Int, A : ClassTag](g: Matrix[M, N, A])(using n: Ordering[A])
-  inline def median: A = g.data.sorted(using n)(g.data.length/2)
 
 object Matrix:
   extension [A : ClassTag](m: Matrix[1, 1, A])
@@ -129,3 +112,21 @@ object Matrix:
     Matrix(data)
 
   inline def fill[M <: Int, N <: Int, A : ClassTag](v: A): Matrix[M, N, A] = Matrix.tabulate((_, _) => v)
+
+  extension [M <: Int, N <: Int](m: Matrix[M, N, _])
+    inline def isSquare: Boolean = m.nrows == m.ncolumns
+
+  extension [N <: Int, A : ClassTag](m: Matrix[N, N, A])
+    inline def diagonal: SizedVector[N, A] = SizedVector(m.filterIndices(_ == _))
+    inline def isSymmetric: Boolean = m == m.transpose
+
+  extension [M <: Int, N <: Int, O <: Int, P <: Int, A : ClassTag](nested: Matrix[M, N, Matrix[O, P, A]])
+    inline def flatten: Matrix[M*O, N*P, A] =
+      val o = constValue[O]; val p = constValue[P]
+      Matrix.tabulate[M*O, N*P, A]((i, j) => nested(i/o, j/p)(i%o, j%p))
+
+  extension [M <: Int, N <: Int, A : ClassTag](g: Matrix[M, N, A])(using n: Fractional[A])
+    inline def average: A = n.div(g.data.fold(n.zero)(n.plus), n.fromInt(g.data.length))
+
+  extension [M <: Int, N <: Int, A : ClassTag](g: Matrix[M, N, A])(using n: Ordering[A])
+    inline def median: A = g.data.sorted(using n)(g.data.length/2)

@@ -1,12 +1,11 @@
-package macroloop.bench
-
-import macroloop.*
+package be.adamv.macroloop.bench
 
 import org.openjdk.jmh.annotations.*
 
 import java.util.concurrent.TimeUnit
 import org.openjdk.jmh.infra.Blackhole
 
+import be.adamv.macroloop.*
 
 
 @BenchmarkMode(Array(Mode.AverageTime))

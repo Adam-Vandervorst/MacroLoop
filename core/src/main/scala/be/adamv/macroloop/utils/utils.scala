@@ -1,4 +1,4 @@
-package macroloop.utils
+package be.adamv.macroloop.utils
 
 import scala.annotation.tailrec
 

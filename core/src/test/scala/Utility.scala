@@ -1,6 +1,6 @@
 import munit.FunSuite
 
-import macroloop.*
+import be.adamv.macroloop.*
 
 class Utility extends FunSuite:
   test("translateCode end-to-end") {

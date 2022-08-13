@@ -1,11 +1,11 @@
-package macroloop.macros
+package be.adamv.macroloop.macros
 
 import quoted.*
 import scala.annotation.tailrec
 import compiletime.ops.int.S
 import compiletime.*
 
-import macroloop.utils.*
+import be.adamv.macroloop.utils.*
 
 def showImpl(e: Expr[Any])(using Quotes): Expr[String] =
   import quotes.reflect.*
@@ -26,7 +26,7 @@ def simplifyTrivialInline(using q: Quotes)(x: q.reflect.Term, simplifyNamed: Boo
 
 def constantFoldSelected(using q: Quotes)(x: q.reflect.Term, reduction: (q.reflect.Symbol, String) => Option[q.reflect.Term]): q.reflect.Term =
   import quotes.reflect.*
-  val rewr = new q.reflect.TreeMap:
+  val rewr = new TreeMap:
     override def transformTerm(tree: Term)(owner: Symbol): Term = tree match
       case s @ Select(q, name) => reduction(q.symbol, name).fold(Select.copy(tree)(transformTerm(q)(owner), name))(transformTerm(_)(owner))
       case _ => super.transformTerm(tree)(owner)

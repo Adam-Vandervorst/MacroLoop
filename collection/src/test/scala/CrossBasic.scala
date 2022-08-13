@@ -1,6 +1,6 @@
 import munit.FunSuite
 
-import macroloop.collection.*
+import be.adamv.macroloop.collection.*
 
 class CrossBasic extends FunSuite:
   import TestVectors.*

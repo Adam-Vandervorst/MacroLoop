@@ -1,8 +1,9 @@
-package macroloop.staging
+package be.adamv.macroloop.staging
 
-import quoted.*
-import quoted.staging.{run, withQuotes, Compiler}
-import macroloop.macros.untuple
+import be.adamv.macroloop.macros.untuple
+
+import scala.quoted.*
+import scala.quoted.staging.{Compiler, run, withQuotes}
 
 given staging.Compiler = staging.Compiler.make(getClass.getClassLoader)
 

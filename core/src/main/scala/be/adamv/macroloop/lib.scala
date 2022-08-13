@@ -1,6 +1,6 @@
-package macroloop
+package be.adamv.macroloop
 
-import macroloop.macros.*
+import be.adamv.macroloop.macros.*
 
 
 inline def show(inline a: Any): String = ${ showImpl('a) }
