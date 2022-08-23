@@ -6,6 +6,8 @@ import be.adamv.macroloop.macros.*
 inline def show(inline a: Any): String = ${ showImpl('a) }
 // transparent prevents tagging the returned code with an extra typing judgement
 transparent inline def translateCode(inline x: Any, inline y: Any): Any = ${ translateCodeImpl('x, 'y) }
+inline def staticClass[A]: Class[A] = ${ staticClassImpl[A] }
+
 
 object IntRange:
   inline def forEach(inline start: Int, inline stop: Int, inline step: Int)(inline f: Int => Unit): Unit =
@@ -28,6 +30,11 @@ object IterableIt:
   inline def forallExceptionCart[Tup <: Tuple](inline tite: Tuple.Map[Tup, Iterable])(inline f: Tup => Boolean): Boolean =
     ${ IterableItImpl.forallExceptionCart('tite, 'f) }
 
+object SizedArrayIndex:
+  inline def arrayOfSize[S <: Int, A] = ${ SizedArrayIndexImpl.arrayOfSizeTypeImpl[S, A] }
+
+  inline def mapUnrolled[T, R](inline a: Array[T], inline n: Int)(inline f: T => R): Array[R] =
+    ${ SizedArrayIndexImpl.mapUnrolled('a, 'f, 'n) }
 
 object ArrayIndex:
   inline def forEach[T](inline a: Array[T])(inline f: T => Unit): Unit =

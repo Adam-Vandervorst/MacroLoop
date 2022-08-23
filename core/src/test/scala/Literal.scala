@@ -99,6 +99,20 @@ class LiteralIt extends LiteralFunSuite:
     }: Boolean)
   }
 
+class LiteralSizedArrayIndex extends LiteralFunSuite:
+  test("mapUnrolled") {
+    val a = Array(1, 2, 3)
+
+    assertCodeMatches(SizedArrayIndex.mapUnrolled(a, 3)(_ + 1), {
+      val na: Array[Int] = java.lang.reflect.Array.newInstance(java.lang.Integer.TYPE, 3).asInstanceOf[Array[Int]]
+      na.update(0, a.apply(0).+(1))
+      na.update(1, a.apply(1).+(1))
+      na.update(2, a.apply(2).+(1))
+
+      (na: Array[Int])
+    }: Array[Int])
+  }
+
 class LiteralArrayIndex extends LiteralFunSuite:
   test("forEach") {
     val a = Array(1, 2, 3)

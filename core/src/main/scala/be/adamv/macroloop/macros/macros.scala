@@ -1,11 +1,25 @@
 package be.adamv.macroloop.macros
 
-import quoted.*
+import scala.quoted.*
+import scala.reflect.ClassTag
 import scala.annotation.tailrec
 import compiletime.ops.int.S
 import compiletime.*
-
 import be.adamv.macroloop.utils.*
+
+
+transparent inline def exprTransform[Y : Type](using q: Quotes)(f: q.reflect.Term => q.reflect.Term)(e: Expr[_]): Expr[Y] =
+  import q.reflect.asTerm
+  f(e.asTerm).asExprOf[Y]
+
+def staticClassImpl[A : Type](using Quotes): Expr[Class[A]] =
+  import quotes.reflect.*
+
+  Implicits.search(TypeRepr.of[Class].appliedTo(TypeRepr.of[A])) match
+    case s: ImplicitSearchSuccess =>
+      s.tree.asExprOf[Class[A]]
+    case _ =>
+      report.errorAndAbort(f"${TypeRepr.of[A].show} is not a class")
 
 def showImpl(e: Expr[Any])(using Quotes): Expr[String] =
   import quotes.reflect.*
@@ -14,6 +28,24 @@ def showImpl(e: Expr[Any])(using Quotes): Expr[String] =
 def translateCodeImpl(x: Expr[Any], y: Expr[Any])(using Quotes): Expr[Any] =
   import quotes.reflect.*
   renameBoundFrom(x.asTerm, y.asTerm).asExpr
+
+def replaceAllRefs(using q: Quotes)(mapping: Map[q.reflect.Symbol, q.reflect.Term])(x: q.reflect.Term): q.reflect.Term =
+  import quotes.reflect.*
+  val rewr = new TreeMap:
+    override def transformTerm(tree: Term)(owner: Symbol): Term = tree match
+      case i: Ident => mapping.unapply(i.symbol).getOrElse(i)
+      case _ => super.transformTerm(tree)(owner)
+  rewr.transformTerm(x)(Symbol.spliceOwner)
+
+def simplifyTrivialValDef(using q: Quotes)(x: q.reflect.Term): q.reflect.Term =
+  import quotes.reflect.*
+  // TODO support multiple values
+  val rewr = new TreeMap:
+    override def transformTerm(tree: Term)(owner: Symbol): Term = tree match
+      case Block((vd @ ValDef(_, _, Some(t)))::Nil, e) =>
+        replaceAllRefs(Map(vd.symbol -> t))(e)
+      case _ => super.transformTerm(tree)(owner)
+  rewr.transformTerm(x)(Symbol.spliceOwner)
 
 def simplifyTrivialInline(using q: Quotes)(x: q.reflect.Term, simplifyNamed: Boolean = false): q.reflect.Term =
   import quotes.reflect.*
@@ -154,6 +186,44 @@ object IterableItImpl:
         case Break => false
     }
 
+object SizedArrayIndexImpl:
+  def arrayOfSizeTypeImpl[S <: Int : Type, A : Type](using Quotes): Expr[Array[A]] =
+    arrayOfSize(Type.valueOfConstant[S].get)
+
+  def arrayOfSize[A : Type](size: Int)(using Quotes): Expr[Array[A]] =
+    import quotes.reflect.*
+
+    Type.of[A] match
+      case '[ Int ] =>
+        '{ java.lang.reflect.Array.newInstance(java.lang.Integer.TYPE, ${ Expr(size) }).asInstanceOf[Array[A]] }
+      //    case _ =>
+      //      Implicits.search(TypeRepr.of[Class].appliedTo(TypeRepr.of[A])) match
+      //        case s: ImplicitSearchSuccess =>
+      //          val cls = s.tree.asExprOf[Class[A]]
+      //          '{ java.lang.reflect.Array.newInstance(${ cls }, ${ Expr(size) }) }.asInstanceOf[Expr[Array[A]]]
+      //        case _ =>
+      //          report.errorAndAbort(f"${TypeRepr.of[A].show} is not a class")
+      case _ =>
+        Implicits.search(TypeRepr.of[ClassTag].appliedTo(TypeRepr.of[A])) match
+          case s: ImplicitSearchSuccess =>
+            val ct = s.tree.asExprOf[ClassTag[A]]
+            '{ java.lang.reflect.Array.newInstance(${ ct }.runtimeClass, ${ Expr(size) }).asInstanceOf[Array[A]] }
+          case _ =>
+            report.errorAndAbort(f"${TypeRepr.of[A].show} is not a class")
+
+
+  def mapUnrolled[T : Type, R : Type](a: Expr[Array[T]], f: Expr[T => R], n: Expr[Int])(using Quotes): Expr[Array[R]] =
+    val size = n.valueOrAbort
+    '{
+    val na = ${ arrayOfSize[R](size) }
+    ${
+      ArrayIndexImpl.foreachInRange(0, size)(i =>
+        exprTransform[Unit](simplifyTrivialValDef)('{ na(${ Expr(i) }) = ${ betaReduceFixE('{ $f($a(${ Expr(i) })) }) } })
+      )
+    }
+    na
+    }
+
 object ArrayIndexImpl:
   def forEach[T : Type](a: Expr[Array[T]], f: Expr[T => Unit])(using Quotes): Expr[Unit] =
     '{
@@ -203,7 +273,7 @@ object ArrayIndexImpl:
       b
     }
 
-  private def foreachInRange(start: Int, end: Int)(f: Int => Expr[Unit])(using Quotes): Expr[Unit] =
+  def foreachInRange(start: Int, end: Int)(f: Int => Expr[Unit])(using Quotes): Expr[Unit] =
     @tailrec def unroll(i: Int, acc: Expr[Unit]): Expr[Unit] =
       if (i < end) unroll(i + 1, '{ $acc; ${f(i)} }) else acc
     if (start < end) unroll(start + 1, f(start)) else '{}
