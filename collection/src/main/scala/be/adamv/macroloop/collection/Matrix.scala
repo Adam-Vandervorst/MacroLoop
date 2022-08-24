@@ -168,6 +168,18 @@ object Matrix:
       val o = constValue[O]; val p = constValue[P]
       Matrix.tabulate[M*O, N*P, A]((i, j) => nested(i/o, j/p)(i%o, j%p))
 
+    inline def showNested: String = nested.rows
+      .map(
+        _.map(
+          _.rows.map(
+            _.map(
+              _.toString
+            ).mkString(" ")
+          ).mkString("|")
+        ).mkString("\n")
+      ).mkString("\n\n")
+
+
   extension [M <: Int, N <: Int, A](g: Matrix[M, N, A])(using n: Fractional[A])
     inline def average: A = n.div(g.data.fold(n.zero)(n.plus), n.fromInt(g.data.length))
 
