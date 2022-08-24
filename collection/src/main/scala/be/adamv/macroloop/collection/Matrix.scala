@@ -42,6 +42,7 @@ class Matrix[M <: Int, N <: Int, A](val data: Array[A]):
     Matrix.tabulate((i, j) => this(constValue[I1] + i, constValue[J1] + j))
 
   inline def toSeq: Seq[A] = collection.immutable.ArraySeq.unsafeWrapArray(data)
+  inline def toSeqSeq: Seq[Seq[A]] = this.toSeq.grouped(ncolumns).toSeq
 
   inline def forEach(inline f: A => Unit): Unit = ArrayIndex.forEach(data)(f)
   inline def map[B](inline f: A => B): Matrix[M, N, B] =

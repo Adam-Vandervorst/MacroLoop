@@ -104,7 +104,7 @@ class LiteralSizedArrayIndex extends LiteralFunSuite:
     val a = Array(1, 2, 3)
 
     assertCodeMatches(SizedArrayIndex.mapUnrolled(a, 3)(_ + 1), {
-      val na: Array[Int] = java.lang.reflect.Array.newInstance(java.lang.Integer.TYPE, 3).asInstanceOf[Array[Int]]
+      val na: Array[Int] = new Array[Int](3)
       na.update(0, a.apply(0).+(1))
       na.update(1, a.apply(1).+(1))
       na.update(2, a.apply(2).+(1))
@@ -117,7 +117,7 @@ class LiteralSizedArrayIndex extends LiteralFunSuite:
     val a = Array(1, 2, 3)
 
     assertCodeMatches(SizedArrayIndex.flatMapFullyUnrolled(a, 3)(x => Array(x, -x), 2), {
-      val na: Array[Int] = java.lang.reflect.Array.newInstance(java.lang.Integer.TYPE, 6).asInstanceOf[Array[Int]]
+      val na: Array[Int] = new Array[Int](6)
       val ra1: Array[Int] = Array.apply(a.apply(0), -a.apply(0))
       na.update(0, ra1.apply(0))
       na.update(1, ra1.apply(1))
