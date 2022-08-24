@@ -31,7 +31,8 @@ object IterableIt:
     ${ IterableItImpl.forallExceptionCart('tite, 'f) }
 
 object SizedArrayIndex:
-  inline def arrayOfSize[S <: Int, A] = ${ SizedArrayIndexImpl.arrayOfSizeTypeImpl[S, A] }
+  inline def ofSize[S <: Int, A] = ${ SizedArrayIndexImpl.ofSizeTypeImpl[S, A] }
+  inline def ofSize[A](inline s: Int) = ${ SizedArrayIndexImpl.ofSizeImpl[A]('s) }
 
   inline def mapUnrolled[T, R](inline a: Array[T], inline n: Int)(inline f: T => R): Array[R] =
     ${ SizedArrayIndexImpl.mapUnrolled('a, 'f, 'n) }

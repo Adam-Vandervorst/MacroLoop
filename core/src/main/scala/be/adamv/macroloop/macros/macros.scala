@@ -187,15 +187,15 @@ object IterableItImpl:
     }
 
 object SizedArrayIndexImpl:
-  def arrayOfSizeTypeImpl[S <: Int : Type, A : Type](using Quotes): Expr[Array[A]] =
-    arrayOfSize(Type.valueOfConstant[S].get)
+  def ofSizeTypeImpl[S <: Int : Type, A : Type](using Quotes): Expr[Array[A]] =
+    ofSizeImpl(Expr(Type.valueOfConstant[S].get))
 
-  def arrayOfSize[A : Type](size: Int)(using Quotes): Expr[Array[A]] =
+  def ofSizeImpl[A : Type](size: Expr[Int])(using Quotes): Expr[Array[A]] =
     import quotes.reflect.*
 
     Type.of[A] match
       case '[ Int ] =>
-        '{ java.lang.reflect.Array.newInstance(java.lang.Integer.TYPE, ${ Expr(size) }).asInstanceOf[Array[A]] }
+        '{ java.lang.reflect.Array.newInstance(java.lang.Integer.TYPE, $size).asInstanceOf[Array[A]] }
       //    case _ =>
       //      Implicits.search(TypeRepr.of[Class].appliedTo(TypeRepr.of[A])) match
       //        case s: ImplicitSearchSuccess =>
@@ -207,7 +207,7 @@ object SizedArrayIndexImpl:
         Implicits.search(TypeRepr.of[ClassTag].appliedTo(TypeRepr.of[A])) match
           case s: ImplicitSearchSuccess =>
             val ct = s.tree.asExprOf[ClassTag[A]]
-            '{ java.lang.reflect.Array.newInstance(${ ct }.runtimeClass, ${ Expr(size) }).asInstanceOf[Array[A]] }
+            '{ java.lang.reflect.Array.newInstance(${ ct }.runtimeClass, $size).asInstanceOf[Array[A]] }
           case _ =>
             report.errorAndAbort(f"${TypeRepr.of[A].show} is not a class")
 
@@ -215,7 +215,7 @@ object SizedArrayIndexImpl:
   def mapUnrolled[T : Type, R : Type](a: Expr[Array[T]], f: Expr[T => R], n: Expr[Int])(using Quotes): Expr[Array[R]] =
     val size = n.valueOrAbort
     '{
-    val na = ${ arrayOfSize[R](size) }
+    val na = ${ ofSizeImpl[R](n) }
     ${
       ArrayIndexImpl.foreachInRange(0, size)(i =>
         exprTransform[Unit](simplifyTrivialValDef)('{ na(${ Expr(i) }) = ${ betaReduceFixE('{ $f($a(${ Expr(i) })) }) } })
@@ -228,7 +228,7 @@ object SizedArrayIndexImpl:
     val size = n.valueOrAbort
     val resultsize = m.valueOrAbort
     '{
-    val na = ${ arrayOfSize[R](size*resultsize) }
+    val na = ${ ofSizeImpl[R](Expr(size*resultsize)) }
     ${
     ArrayIndexImpl.foreachInRange(0, size)(i =>
       '{
