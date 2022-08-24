@@ -1,11 +1,12 @@
 package be.adamv.macroloop.collection
 
+import be.adamv.macroloop.{IntRange, SizedArrayIndex}
+
 import scala.compiletime.constValue
 import scala.compiletime.ops.int.*
-import scala.reflect.ClassTag
 
 
-class SizedVector[N <: Int, A : ClassTag](val data: Array[A]):
+class SizedVector[N <: Int, A](val data: Array[A]):
   inline def length: N = constValue
 
   inline def apply(inline i: Int): A = data(i)
@@ -16,14 +17,18 @@ class SizedVector[N <: Int, A : ClassTag](val data: Array[A]):
   inline def slice[I1 <: Int, I2 <: Int]: SizedVector[I2 - I1, A] =
     SizedVector(data.slice(constValue[I1], constValue[I2]))
 
-  inline def map[B : ClassTag](inline f: A => B): SizedVector[N, B] = SizedVector(data.map(f))
-  inline def flatMap[M <: Int, B : ClassTag](inline f: A => SizedVector[M, B]): SizedVector[M*N, B] = SizedVector(data.flatMap(f(_).data))
+  inline def map[B](inline f: A => B): SizedVector[N, B] =
+    SizedVector(SizedArrayIndex.mapUnrolled(data, constValue[N])(f))
 
-  inline def convolve[M <: Int, B, C : ClassTag](kernel: SizedVector[M, B],
-                                          inline combine: (A, B) => C, inline add: (C, C) => C, inline zero: C): SizedVector[N, C] =
+  inline def flatMap[M <: Int, B](inline f: A => SizedVector[M, B]): SizedVector[M*N, B] =
+    SizedVector(SizedArrayIndex.flatMapFullyUnrolled(data, constValue[N])(f(_).data, constValue[M]))
+
+  inline def convolve[M <: Int, B, C](kernel: SizedVector[M, B],
+                                      inline combine: (A, B) => C, inline add: (C, C) => C, inline zero: C): SizedVector[N, C] =
     val c = kernel.length/2
 
-    val result = Array.fill(length)(zero)
+    val result: Array[C] = SizedArrayIndex.ofSize[N, C]
+    IntRange.forEach(0, constValue[N], 1)(i => result(i) = zero)
 
     for i <- 0 until length
         k <- 0 until kernel.length do
@@ -33,28 +38,28 @@ class SizedVector[N <: Int, A : ClassTag](val data: Array[A]):
         result(i) = add(result(i), combine(this(ii), kernel(k)))
     SizedVector(result)
 
-  inline def kronecker[M <: Int, B, C : ClassTag](that: SizedVector[M, B],
-                                                  inline combine: (A, B) => C): SizedVector[M*N, C] =
-    this.flatMap(a => that.map(b => combine(a, b)))
+  inline def kronecker[M <: Int, B, C](that: SizedVector[M, B],
+                                       inline combine: (A, B) => C): SizedVector[M*N, C] =
+    // workaround weird inlining "Term-dependent types are experimental" bug
+    def inner(a: A) = that.map(combine(a, _))
+    this.flatMap(inner)
 
-  inline def hadamard[B, C : ClassTag](that: SizedVector[N, B],
-                                       inline combine: (A, B) => C): SizedVector[N, C] =
-    val cdata = new Array[C](length)
-    var i = 0
-    while i < length do
-      cdata(i) = combine(this.data(i), that.data(i))
-      i += 1
+  inline def hadamard[B, C](that: SizedVector[N, B],
+                            inline combine: (A, B) => C): SizedVector[N, C] =
+
+    val cdata: Array[C] = SizedArrayIndex.ofSize[N, C]
+    IntRange.forEach(0, constValue[N], 1)(i => cdata(i) = combine(this.data(i), that.data(i)))
     SizedVector(cdata)
 
-  inline def inner[B, C: ClassTag](that: SizedVector[N, B],
-                                   inline combine: (A, B) => C, inline add: (C, C) => C, inline zero: C): C =
+  inline def inner[B, C](that: SizedVector[N, B],
+                         inline combine: (A, B) => C, inline add: (C, C) => C, inline zero: C): C =
     var result = zero
 
     for i <- 0 until length do
-      result = add(result, combine(this (i), that(i)))
+      result = add(result, combine(this(i), that(i)))
     result
 
-  inline def outer[M <: Int, B, C: ClassTag](that: SizedVector[M, B],
+  inline def outer[M <: Int, B, C](that: SizedVector[M, B],
                                              inline combine: (A, B) => C): Matrix[N, M, C] =
     Matrix.tabulate[N, M, C]((i, j) => combine(this(i), that(j)))
 
@@ -66,27 +71,32 @@ class SizedVector[N <: Int, A : ClassTag](val data: Array[A]):
 
 
 object SizedVector:
-  extension [A : ClassTag](v: SizedVector[1, A])
+  inline def apply[N <: Int, A](data: Array[A]) = new SizedVector[N, A](data.asInstanceOf)
+
+  extension [A](v: SizedVector[1, A])
     inline def singleElement: A = v(0)
-  inline def asSingleElement[A : ClassTag](a: A): SizedVector[1, A] = SizedVector(Array(a))
-
-  inline def from[N <: Int, A : ClassTag](as: IterableOnce[A]): SizedVector[N, A] = SizedVector(Array.from(as))
-
-  inline def tabulate[N <: Int, A : ClassTag](inline f: Int => A): SizedVector[N, A] =
-    val n = constValue[N]
-    val data = new Array[A](n)
-    var i = 0
-    while i < n do
-      data(i) = f(i)
-      i += 1
+  inline def asSingleElement[A](a: A): SizedVector[1, A] =
+    val data: Array[A] = SizedArrayIndex.ofSize[1, A]
+    data(0) = a
     SizedVector(data)
 
-  inline def fill[N <: Int, A : ClassTag](v: A): SizedVector[N, A] = SizedVector.tabulate(_ => v)
+  inline def from[N <: Int, A](as: IterableOnce[A]): SizedVector[N, A] =
+    val data: Array[A] = SizedArrayIndex.ofSize[N, A]
+    val it = as.iterator
+    IntRange.forEach(0, constValue[N], 1)(i => data(i) = it.next())
+    SizedVector(data)
 
-  extension [M <: Int, N <: Int, A : ClassTag](nested: SizedVector[M, SizedVector[N, A]])
+  inline def tabulate[N <: Int, A](inline f: Int => A): SizedVector[N, A] =
+    val data: Array[A] = SizedArrayIndex.ofSize[N, A]
+    IntRange.forEach(0, constValue[N], 1)(i => data(i) = f(i))
+    SizedVector(data)
+
+  inline def fill[N <: Int, A](v: A): SizedVector[N, A] = SizedVector.tabulate(_ => v)
+
+  extension [M <: Int, N <: Int, A](nested: SizedVector[M, SizedVector[N, A]])
     inline def toMatrix: Matrix[M, N, A] =
       Matrix.tabulate[M, N, A]((i, j) => nested(i)(j))
   
-  extension [N <: Int, A : ClassTag](v: SizedVector[N, A])
+  extension [N <: Int, A](v: SizedVector[N, A])
     inline def asRow: Matrix[1, N, A] = Matrix(v.data.clone())
     inline def asColumn: Matrix[N, 1, A] = Matrix(v.data.clone())
