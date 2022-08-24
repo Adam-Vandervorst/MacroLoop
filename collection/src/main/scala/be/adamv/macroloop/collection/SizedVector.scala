@@ -19,6 +19,8 @@ class SizedVector[N <: Int, A](val data: Array[A]):
   inline def slice[I1 <: Int, I2 <: Int]: SizedVector[I2 - I1, A] =
     SizedVector(data.slice(constValue[I1], constValue[I2]))
 
+  inline def toSeq: Seq[A] = collection.immutable.ArraySeq.unsafeWrapArray(data)
+
   inline def forEach(inline f: A => Unit): Unit = ArrayIndex.forEach(data)(f)
   inline def map[B](inline f: A => B): SizedVector[N, B] =
     SizedVector(SizedArrayIndex.mapUnrolled(data, constValue[N])(f))
