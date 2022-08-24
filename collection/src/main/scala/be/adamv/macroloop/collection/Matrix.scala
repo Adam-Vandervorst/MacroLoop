@@ -36,6 +36,8 @@ class Matrix[M <: Int, N <: Int, A](val data: Array[A]):
     ret
 
   inline def transpose: Matrix[N, M, A] = Matrix.tabulate((i, j) => this(j, i))
+  inline def tiled[DM <: Int, DN <: Int](using M % DM =:= 0, N % DN =:= 0): Matrix[DM, DN, Matrix[M/DM, N/DN, A]] =
+    Matrix.tabulate((di, dj) => Matrix.tabulate((i, j) => this(di*constValue[M/DM] + i, dj*constValue[N/DN] + j)))
   inline def slice[I1 <: Int, I2 <: Int, J1 <: Int, J2 <: Int]: Matrix[I2 - I1, J2 - J1, A] =
     Matrix.tabulate((i, j) => this(constValue[I1] + i, constValue[J1] + j))
 
@@ -113,6 +115,24 @@ object Matrix:
     val it = as.iterator
     IntRange.forEach(0, constValue[M*N], 1)(i => data(i) = it.next())
     Matrix(data)
+
+  inline def from2D[M <: Int, N <: Int, A](ass: IterableOnce[IterableOnce[A]]): Matrix[M, N, A] =
+    val m = constValue[M]
+    val n = constValue[N]
+    val data: Array[A] = SizedArrayIndex.ofSize[M*N, A]
+    val it = ass.iterator
+    var j = 0
+    while j < m do
+      val it2 = it.next().iterator
+      var i = 0
+      while i < n do
+        data(j*n + i) = it2.next()
+        i += 1
+      j += 1
+    new Matrix(data)
+
+  inline def fromSparse[M <: Int, N <: Int, A](pf: PartialFunction[(Int, Int), A]): Matrix[M, N, Option[A]] =
+    Matrix.tabulate(pf.unapply(_, _))
 
   inline def tabulate[M <: Int, N <: Int, A](inline f: (Int, Int) => A): Matrix[M, N, A] =
     val m = constValue[M]

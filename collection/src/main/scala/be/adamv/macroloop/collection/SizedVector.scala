@@ -14,6 +14,8 @@ class SizedVector[N <: Int, A](val data: Array[A]):
 
   inline def reshape[O <: Int, P <: Int](using O*P =:= N): Matrix[O, P, A] =
     Matrix.tabulate((i, j) => this(i*constValue[P] + j))
+  inline def chunked[DN <: Int](using N % DN =:= 0): SizedVector[DN, SizedVector[N/DN, A]] =
+    SizedVector.tabulate(di => SizedVector.tabulate(i => this(di*constValue[N/DN] + i)))
   inline def slice[I1 <: Int, I2 <: Int]: SizedVector[I2 - I1, A] =
     SizedVector(data.slice(constValue[I1], constValue[I2]))
 
@@ -85,6 +87,9 @@ object SizedVector:
     val it = as.iterator
     IntRange.forEach(0, constValue[N], 1)(i => data(i) = it.next())
     SizedVector(data)
+
+  inline def fromSparse[N <: Int, A](pf: PartialFunction[Int, A]): SizedVector[N, Option[A]] =
+    SizedVector.tabulate(pf.unapply)
 
   inline def tabulate[N <: Int, A](inline f: Int => A): SizedVector[N, A] =
     val data: Array[A] = SizedArrayIndex.ofSize[N, A]

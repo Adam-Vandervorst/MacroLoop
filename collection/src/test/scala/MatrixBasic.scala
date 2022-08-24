@@ -4,7 +4,7 @@ import be.adamv.macroloop.collection.Matrix
 
 
 object TestMatrices:
-  val g23 = Matrix.from[2, 3, Int](Seq(1, 3, 6, 1, 2, 4))
+  val g23 = Matrix.from2D[2, 3, Int](Seq(Seq(1, 3, 6), Seq(1, 2, 4)))
 
   val g22 = Matrix.from[2, 2, Int](Seq(4, 10, 16, 20))
 
@@ -21,6 +21,12 @@ object TestMatrices:
     0, 15, 0, 20,
     18, 21, 24, 28))
   val k4 = Matrix.from[2, 2, Int](Seq(0, 10, 18, 28))
+  val k3tiled: Matrix[2, 2, Matrix[2, 2, Int]] = Matrix.from(Seq(
+    Matrix.from(Seq(0, 5, 6, 7)),
+    Matrix.from(Seq(0, 10, 12, 14)),
+    Matrix.from(Seq(0, 15, 18, 21)),
+    Matrix.from(Seq(0, 20, 24, 28)),
+  ))
 
   val s1 = Matrix.from[3, 3, -1 | 0 | 1](Seq(1, -1, 0, -1, 0, 1, 0, 1, -1))
   val s2 = Matrix.from[3, 3, -1 | 0 | 1](Seq(-1, 0, 0, 0, 0, 0, 0, 0, 1))
@@ -98,4 +104,8 @@ class MatrixBasic extends FunSuite:
     assert(s2.isSymmetric)
     assert(!k1.isSymmetric)
     assert(!k2.isSymmetric)
+  }
+
+  test("tiled") {
+    assert(k3.tiled[2, 2] == k3tiled)
   }

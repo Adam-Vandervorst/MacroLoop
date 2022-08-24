@@ -195,7 +195,7 @@ object SizedArrayIndexImpl:
 
     Type.of[A] match
       case '[ Int ] =>
-        '{ java.lang.reflect.Array.newInstance(java.lang.Integer.TYPE, $size).asInstanceOf[Array[A]] }
+        '{ new Array[Int]($size) }.asInstanceOf[Expr[Array[A]]]
       //    case _ =>
       //      Implicits.search(TypeRepr.of[Class].appliedTo(TypeRepr.of[A])) match
       //        case s: ImplicitSearchSuccess =>
@@ -207,7 +207,7 @@ object SizedArrayIndexImpl:
         Implicits.search(TypeRepr.of[ClassTag].appliedTo(TypeRepr.of[A])) match
           case s: ImplicitSearchSuccess =>
             val ct = s.tree.asExprOf[ClassTag[A]]
-            '{ java.lang.reflect.Array.newInstance(${ ct }.runtimeClass, $size).asInstanceOf[Array[A]] }
+            '{ $ct.newArray($size) }
           case _ =>
             report.errorAndAbort(f"${TypeRepr.of[A].show} is not a class")
 

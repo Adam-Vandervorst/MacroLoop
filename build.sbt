@@ -1,5 +1,5 @@
 // <usage overhaul>.<breaking code change (including fixes)>.<user facing addition>
-ThisBuild / version := "0.3.0"
+ThisBuild / version := "0.3.3"
 ThisBuild / organization := "be.adamv"
 ThisBuild / scalaVersion := "3.2.1-RC1-bin-20220623-5a8a61d-NIGHTLY"
 
