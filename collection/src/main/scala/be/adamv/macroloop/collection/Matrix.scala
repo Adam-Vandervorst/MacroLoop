@@ -2,7 +2,7 @@ package be.adamv.macroloop.collection
 
 import scala.compiletime.constValue
 import scala.compiletime.ops.int.*
-import be.adamv.macroloop.{IntRange, SizedArrayIndex}
+import be.adamv.macroloop.{ArrayIndex, IntRange, SizedArrayIndex}
 
 
 class Matrix[M <: Int, N <: Int, A](val data: Array[A]):
@@ -41,6 +41,7 @@ class Matrix[M <: Int, N <: Int, A](val data: Array[A]):
   inline def slice[I1 <: Int, I2 <: Int, J1 <: Int, J2 <: Int]: Matrix[I2 - I1, J2 - J1, A] =
     Matrix.tabulate((i, j) => this(constValue[I1] + i, constValue[J1] + j))
 
+  inline def forEach(inline f: A => Unit): Unit = ArrayIndex.forEach(data)(f)
   inline def map[B](inline f: A => B): Matrix[M, N, B] =
     val ndata = SizedArrayIndex.ofSize[M*N, B]
     IntRange.forEach(0, constValue[M*N], 1)(i => ndata(i) = f(data(i)))

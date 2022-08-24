@@ -1,6 +1,6 @@
 package be.adamv.macroloop.collection
 
-import be.adamv.macroloop.{IntRange, SizedArrayIndex}
+import be.adamv.macroloop.{ArrayIndex, IntRange, SizedArrayIndex}
 
 import scala.compiletime.constValue
 import scala.compiletime.ops.int.*
@@ -19,9 +19,9 @@ class SizedVector[N <: Int, A](val data: Array[A]):
   inline def slice[I1 <: Int, I2 <: Int]: SizedVector[I2 - I1, A] =
     SizedVector(data.slice(constValue[I1], constValue[I2]))
 
+  inline def forEach(inline f: A => Unit): Unit = ArrayIndex.forEach(data)(f)
   inline def map[B](inline f: A => B): SizedVector[N, B] =
     SizedVector(SizedArrayIndex.mapUnrolled(data, constValue[N])(f))
-
   inline def flatMap[M <: Int, B](inline f: A => SizedVector[M, B]): SizedVector[M*N, B] =
     SizedVector(SizedArrayIndex.flatMapFullyUnrolled(data, constValue[N])(f(_).data, constValue[M]))
 
