@@ -36,6 +36,9 @@ object SizedArrayIndex:
   inline def mapUnrolled[T, R](inline a: Array[T], inline n: Int)(inline f: T => R): Array[R] =
     ${ SizedArrayIndexImpl.mapUnrolled('a, 'f, 'n) }
 
+  inline def flatMapFullyUnrolled[T, R](inline a: Array[T], inline n: Int)(inline f: T => Array[R], inline m: Int): Array[R] =
+    ${ SizedArrayIndexImpl.flatMapFullyUnrolled('a, 'f, 'n, 'm) }
+
 object ArrayIndex:
   inline def forEach[T](inline a: Array[T])(inline f: T => Unit): Unit =
     ${ ArrayIndexImpl.forEach('a, 'f) }

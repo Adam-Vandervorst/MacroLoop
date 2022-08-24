@@ -224,6 +224,27 @@ object SizedArrayIndexImpl:
     na
     }
 
+  def flatMapFullyUnrolled[T : Type, R : Type](a: Expr[Array[T]], f: Expr[T => Array[R]], n: Expr[Int], m: Expr[Int])(using Quotes): Expr[Array[R]] =
+    val size = n.valueOrAbort
+    val resultsize = m.valueOrAbort
+    '{
+    val na = ${ arrayOfSize[R](size*resultsize) }
+    ${
+    ArrayIndexImpl.foreachInRange(0, size)(i =>
+      '{
+        val ra = ${ exprTransform[Array[R]](simplifyTrivialValDef)(betaReduceFixE('{ $f($a(${ Expr(i) })) })) }
+        ${
+          ArrayIndexImpl.foreachInRange(0, resultsize)(j =>
+            exprTransform[Unit](simplifyTrivialValDef)('{ na(${ Expr(i*resultsize + j) }) = ra(${ Expr(j) }) })
+          )
+        }
+      }
+    )
+    }
+    na
+    }
+
+
 object ArrayIndexImpl:
   def forEach[T : Type](a: Expr[Array[T]], f: Expr[T => Unit])(using Quotes): Expr[Unit] =
     '{

@@ -113,6 +113,25 @@ class LiteralSizedArrayIndex extends LiteralFunSuite:
     }: Array[Int])
   }
 
+  test("flatMapFullyUnrolled") {
+    val a = Array(1, 2, 3)
+
+    assertCodeMatches(SizedArrayIndex.flatMapFullyUnrolled(a, 3)(x => Array(x, -x), 2), {
+      val na: Array[Int] = java.lang.reflect.Array.newInstance(java.lang.Integer.TYPE, 6).asInstanceOf[Array[Int]]
+      val ra1: Array[Int] = Array.apply(a.apply(0), -a.apply(0))
+      na.update(0, ra1.apply(0))
+      na.update(1, ra1.apply(1))
+      val ra2: Array[Int] = Array.apply(a.apply(1), -a.apply(1))
+      na.update(2, ra2.apply(0))
+      na.update(3, ra2.apply(1))
+      val ra3: Array[Int] = Array.apply(a.apply(2), -a.apply(2))
+      na.update(4, ra3.apply(0))
+      na.update(5, ra3.apply(1))
+      na
+    }: Array[Int])
+  }
+
+
 class LiteralArrayIndex extends LiteralFunSuite:
   test("forEach") {
     val a = Array(1, 2, 3)
