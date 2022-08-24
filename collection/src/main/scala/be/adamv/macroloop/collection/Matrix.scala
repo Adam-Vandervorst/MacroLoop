@@ -16,7 +16,7 @@ class Matrix[M <: Int, N <: Int, A](val data: Array[A]):
   inline def rows: Iterator[Array[A]] = data.grouped(ncolumns)
 
   inline def filterIndices(inline p: (Int, Int) => Boolean): Array[A] =
-    // TODO, make a compiletime builder
+    // TODO, make a compiletime-informed builder
     val cdata: Array[A] = SizedArrayIndex.ofSize[M*N, A]
     var c = 0
     var j = 0
@@ -28,12 +28,7 @@ class Matrix[M <: Int, N <: Int, A](val data: Array[A]):
           c += 1
         i += 1
       j += 1
-    val ret = SizedArrayIndex.ofSize[A](c)
-    var nc = 0
-    while nc < c do
-      ret(nc) = cdata(nc)
-      nc += 1
-    ret
+    Array.copyOf(cdata, c)
 
   inline def transpose: Matrix[N, M, A] = Matrix.tabulate((i, j) => this(j, i))
   inline def tiled[DM <: Int, DN <: Int](using M % DM =:= 0, N % DN =:= 0): Matrix[DM, DN, Matrix[M/DM, N/DN, A]] =
