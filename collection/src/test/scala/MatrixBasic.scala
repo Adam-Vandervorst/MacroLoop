@@ -4,29 +4,30 @@ import be.adamv.macroloop.collection.Matrix
 
 
 object TestMatrices:
-  val g23 = Matrix.from2D[2, 3, Int](Seq(Seq(1, 3, 6), Seq(1, 2, 4)))
+  val g23 = Matrix((1, 3, 6), (1, 2, 4))
 
-  val g22 = Matrix.from[2, 2, Int](Seq(4, 10, 16, 20))
+  val g22 = Matrix((4, 10), (16, 20))
 
-  val g44 = g22.flatMap(i => Matrix.from[2, 2, Int](Seq(i - 3, i - 2, i - 1, i)))
+  val g44 = g22.flatMap(i => Matrix((i - 3, i - 2), (i - 1, i)))
 
-  val m1 = Matrix.from[2, 3, Int](Seq(2, -3, 4, 53, 3, 5))
-  val m2 = Matrix.from[3, 2, Int](Seq(3, 3, 5, 0, -3, 4))
-  val m3 = Matrix.from[2, 2, Int](Seq(-21, 22, 159, 179))
+  val m1 = Matrix((2, -3, 4), (53, 3, 5))
+  val m2 = Matrix((3, 3), (5, 0), (-3, 4))
+  val m3 = Matrix((-21, 22), (159, 179))
 
-  val k1 = Matrix.from[2, 2, Int](Seq(1, 2, 3, 4))
-  val k2 = Matrix.from[2, 2, Int](Seq(0, 5, 6, 7))
-  val k3 = Matrix.from[4, 4, Int](Seq(0, 5, 0, 10,
-    6, 7, 12, 14,
-    0, 15, 0, 20,
-    18, 21, 24, 28))
-  val k4 = Matrix.from[2, 2, Int](Seq(0, 10, 18, 28))
-  val k3tiled: Matrix[2, 2, Matrix[2, 2, Int]] = Matrix.from(Seq(
-    Matrix.from(Seq(0, 5, 6, 7)),
-    Matrix.from(Seq(0, 10, 12, 14)),
-    Matrix.from(Seq(0, 15, 18, 21)),
-    Matrix.from(Seq(0, 20, 24, 28)),
-  ))
+  val k1 = Matrix((1, 2), (3, 4))
+  val k2 = Matrix((0, 5), (6, 7))
+  val k3 = Matrix(
+    (0, 5, 0, 10),
+    (6, 7, 12, 14),
+    (0, 15, 0, 20),
+    (18, 21, 24, 28))
+  val k4 = Matrix((0, 10), (18, 28))
+  val k3tiled: Matrix[2, 2, Matrix[2, 2, Int]] = Matrix(
+    (Matrix((0, 5), (6, 7)),
+     Matrix((0, 10), (12, 14))),
+    (Matrix((0, 15), (18, 21)),
+     Matrix((0, 20), (24, 28))),
+  )
 
   val s1 = Matrix.from[3, 3, -1 | 0 | 1](Seq(1, -1, 0, -1, 0, 1, 0, 1, -1))
   val s2 = Matrix.from[3, 3, -1 | 0 | 1](Seq(-1, 0, 0, 0, 0, 0, 0, 0, 1))
@@ -51,7 +52,7 @@ class MatrixBasicExample extends FunSuite:
   test("numerical") {
     val g44f = g44.map(_.toFloat)
     assertEquals(g44f.convolve(
-      Matrix.from[2, 2, Float](Seq(0.25f, 0.25f, 0.25f, 0.25f)),
+      Matrix((0.25f, 0.25f), (0.25f, 0.25f)),
       _ * _, _ + _, 0f
     ).show,
     """0.25,0.75,2.25,3.75
@@ -63,7 +64,7 @@ class MatrixBasicExample extends FunSuite:
   test("construct") {
     assertEquals(Matrix
       .tabulate[3, 4, Int]((i, j) => i * 10 + j)
-      .flatMap(i => Matrix.from[1, 2, Int](Seq(i, i * 2)))
+      .flatMap(i => Matrix(Tuple1((i, i * 2))))
       .show,
     """0,0,1,2,2,4,3,6
       |10,20,11,22,12,24,13,26

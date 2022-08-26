@@ -3,11 +3,11 @@ import munit.FunSuite
 
 
 object TestVectors:
-  val v1 = SizedVector.from[2, Int](Seq(2, 3))
-  val v2 = SizedVector.from[2, Int](Seq(4, 5))
-  val v3 = SizedVector.from[4, Int](Seq(2 * 4, 2 * 5, 3 * 4, 3 * 5))
-  val v4 = SizedVector.from[2, Int](Seq(2 * 4, 3 * 5))
-  val v5 = SizedVector.from[4, Int](Seq(0, 7, 0, 28))
+  val v1 = SizedVector(2, 3)
+  val v2 = SizedVector(4, 5)
+  val v3 = SizedVector(2 * 4, 2 * 5, 3 * 4, 3 * 5)
+  val v4 = SizedVector(2 * 4, 3 * 5)
+  val v5 = SizedVector(0, 7, 0, 28)
 
 
 class VectorBasic extends FunSuite:

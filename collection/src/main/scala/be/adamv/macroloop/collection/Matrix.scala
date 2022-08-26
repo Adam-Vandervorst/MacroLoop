@@ -5,7 +5,8 @@ import scala.compiletime.ops.int.*
 import be.adamv.macroloop.{ArrayIndex, IntRange, SizedArrayIndex}
 
 
-class Matrix[M <: Int, N <: Int, A](val data: Array[A]):
+abstract class Matrix[M <: Int, N <: Int, A]:
+  val data: Array[A]
   inline def nrows: M = constValue
   inline def ncolumns: N = constValue
   inline def nitems: M*N = constValue
@@ -43,7 +44,7 @@ class Matrix[M <: Int, N <: Int, A](val data: Array[A]):
   inline def map[B](inline f: A => B): Matrix[M, N, B] =
     val ndata = SizedArrayIndex.ofSize[M*N, B]
     IntRange.forEach(0, constValue[M*N], 1)(i => ndata(i) = f(data(i)))
-    Matrix(ndata)
+    Matrix.wrap(ndata)
   inline def flatMap[O <: Int, P <: Int, B](inline f: A => Matrix[O, P, B]): Matrix[M*O, N*P, B] = map(f).flatten
 
   inline def convolve[O <: Int, P <: Int, B, C](kernel: Matrix[O, P, B],
@@ -84,7 +85,7 @@ class Matrix[M <: Int, N <: Int, A](val data: Array[A]):
       inline combine: (A, B) => C): Matrix[M, N, C] =
     val cdata: Array[C] = SizedArrayIndex.ofSize[M*N, C]
     IntRange.forEach(0, constValue[M*N], 1)(i => cdata(i) = combine(this.data(i), that.data(i)))
-    Matrix(cdata)
+    Matrix.wrap(cdata)
 
   inline def frobenius[B, C](that: Matrix[M, N, B],
       inline combine: (A, B) => C, inline add: (C, C) => C, inline zero: C): C =
@@ -103,7 +104,10 @@ class Matrix[M <: Int, N <: Int, A](val data: Array[A]):
 
 
 object Matrix:
-  inline def apply[M <: Int, N <: Int, A](data: Array[A]) = new Matrix[M, N, A](data)
+  export be.adamv.macroloop.collection.TupleConstructors.matrixApply as apply
+  
+  inline def wrap[M <: Int, N <: Int, A](inline initial: Array[A]): Matrix[M, N, A] = new:
+    override val data: Array[A] = initial
 
   extension [A](m: Matrix[1, 1, A])
     inline def singleElement: A = m(0, 0)
@@ -113,7 +117,7 @@ object Matrix:
     val data: Array[A] = SizedArrayIndex.ofSize[M*N, A]
     val it = as.iterator
     IntRange.forEach(0, constValue[M*N], 1)(i => data(i) = it.next())
-    Matrix(data)
+    Matrix.wrap(data)
 
   inline def from2D[M <: Int, N <: Int, A](ass: IterableOnce[IterableOnce[A]]): Matrix[M, N, A] =
     val m = constValue[M]
@@ -128,7 +132,7 @@ object Matrix:
         data(j*n + i) = it2.next()
         i += 1
       j += 1
-    new Matrix(data)
+    Matrix.wrap(data)
 
   inline def fromSparse[M <: Int, N <: Int, A](pf: PartialFunction[(Int, Int), A]): Matrix[M, N, Option[A]] =
     Matrix.tabulate(pf.unapply(_, _))
@@ -144,18 +148,18 @@ object Matrix:
         data(j*n + i) = f(j, i)
         i += 1
       j += 1
-    new Matrix(data)
+    Matrix.wrap(data)
 
   inline def fill[M <: Int, N <: Int, A](v: A): Matrix[M, N, A] =
     val data: Array[A] = SizedArrayIndex.ofSize[M*N, A]
     IntRange.forEach(0, constValue[M*N], 1)(i => data(i) = v)
-    Matrix(data)
+    Matrix.wrap(data)
 
   extension [M <: Int, N <: Int](m: Matrix[M, N, _])
     inline def isSquare: Boolean = m.nrows == m.ncolumns
 
   extension [N <: Int, A](m: Matrix[N, N, A])
-    inline def diagonal: SizedVector[N, A] = SizedVector(m.filterIndices(_ == _))
+    inline def diagonal: SizedVector[N, A] = SizedVector.wrap(m.filterIndices(_ == _))
     inline def isSymmetric: Boolean = m == m.transpose
 
   extension [M <: Int, N <: Int, O <: Int, P <: Int, A](nested: Matrix[M, N, Matrix[O, P, A]])
@@ -180,3 +184,7 @@ object Matrix:
 
   extension [M <: Int, N <: Int, A](g: Matrix[M, N, A])(using n: Ordering[A])
     inline def median: A = g.data.sorted(using n)(g.data.length/2)
+
+
+@main def concreteTest =
+  println(Matrix((1, 2), (3, 4)).show)
