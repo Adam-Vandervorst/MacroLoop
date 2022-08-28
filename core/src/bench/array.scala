@@ -240,3 +240,102 @@ class ArrayForallMod:
   def port_while_index =
     port.ArrayIndex.forall[Int](ar.asInstanceOf, _ != matching)
 end ArrayForallMod
+
+
+@BenchmarkMode(Array(Mode.AverageTime))
+@OutputTimeUnit(TimeUnit.NANOSECONDS)
+@Warmup(iterations = 5, time = 250, timeUnit = TimeUnit.MILLISECONDS)
+@Measurement(iterations = 5, time = 250, timeUnit = TimeUnit.MILLISECONDS)
+@Fork(2, warmups = 2)
+@State(Scope.Benchmark)
+class ArrayCopyParts:
+  @Param(Array("small-single", "small-all", "large-few", "large-many"))
+  var mode: String = _
+
+  protected var elements: Int = _
+  protected var divisions: Int = _
+  protected var nested: Array[Array[Int]] = _
+  protected var flat: Array[Int] = _
+
+  @Setup
+  def setup =
+    mode match
+      case "small-single" =>
+        elements = 10
+        divisions = 1
+        nested = Array(Array.fill(10)(1))
+        flat = Array.fill(10)(1)
+      case "small-all" =>
+        elements = 10
+        divisions = 10
+        nested = Array.fill(10)(Array(1))
+        flat = Array.fill(10)(1)
+      case "large-few" =>
+        elements = 1000
+        divisions = 10
+        nested = Array.fill(10)(Array.fill(100)(1))
+        flat = Array.fill(1000)(1)
+      case "large-many" =>
+        elements = 1000
+        divisions = 100
+        nested = Array.fill(100)(Array.fill(10)(1))
+        flat = Array.fill(1000)(1)
+
+  @Benchmark
+  def flat_clone =
+    flat.clone()
+
+  @Benchmark
+  def nested_clone =
+    nested.map(_.clone())
+
+  @Benchmark
+  def to_flat_tabulate =
+    val ar = new Array[Int](elements)
+    val isize = elements/divisions
+    var i = 0
+    while i < divisions do
+      var j = 0
+      while j < isize do
+        ar(i*isize + j) = nested(i)(j)
+        j += 1
+      i += 1
+    ar
+
+  @Benchmark
+  def to_nested_tabulate =
+    val ar = new Array[Array[Int]](divisions)
+    val isize = elements/divisions
+    var i = 0
+    while i < divisions do
+      var j = 0
+      val iar = new Array[Int](isize)
+      while j < isize do
+        iar(j) = flat(i*isize + j)
+        j += 1
+      ar(i) = iar
+      i += 1
+    ar
+
+  @Benchmark
+  def to_flat_copy =
+    val ar = new Array[Int](elements)
+    val isize = elements/divisions
+    var i = 0
+    while i < divisions do
+      Array.copy(nested(i), 0, ar, i*isize, isize)
+      i += 1
+    ar
+
+  @Benchmark
+  def to_nested_copy =
+    val ar = new Array[Array[Int]](divisions)
+    val isize = elements/divisions
+    var i = 0
+    while i < divisions do
+      val iar = new Array[Int](isize)
+      Array.copy(flat, i*isize, iar, 0, isize)
+      ar(i) = iar
+      i += 1
+    ar
+end ArrayCopyParts
