@@ -1,7 +1,7 @@
 // <usage overhaul>.<breaking code change (including fixes)>.<user facing addition>
-ThisBuild / version := "0.3.6"
+ThisBuild / version := "0.4.1"
 ThisBuild / organization := "be.adamv"
-ThisBuild / scalaVersion := "3.2.1-RC1-bin-20220623-5a8a61d-NIGHTLY"
+ThisBuild / scalaVersion := "3.2.1-RC1-bin-20220823-3ad97df-NIGHTLY"
 
 val publishSettings = Seq(
   publishTo := Some(Resolver.file("local-ivy", file("~"))),

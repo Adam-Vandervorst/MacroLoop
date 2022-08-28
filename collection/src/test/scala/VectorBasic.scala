@@ -22,5 +22,5 @@ class VectorBasic extends FunSuite:
   }
 
   test("hadamard") {
-    assert(v1.hadamard(v2, _ * _) == v4)
+    assert(v1.elementwise(v2, _ * _) == v4)
   }
