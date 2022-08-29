@@ -22,8 +22,13 @@ abstract class SizedVector[N <: Int, A]:
   val data: Array[A]
   inline def length: N = constValue
 
+  /** Get the element in position i. */
   inline def apply(inline i: Int): A = data(i)
+  /** Set the element in position i to v. */
   inline def update(inline i: Int, inline v: A): Unit = data(i) = v
+
+  /** An iterator over all elements. */
+  inline def iterator: Iterator[A] = data.iterator
 
   // TODO use native copy
   /** Structure the flat vector in a Matrix with given dimension. */

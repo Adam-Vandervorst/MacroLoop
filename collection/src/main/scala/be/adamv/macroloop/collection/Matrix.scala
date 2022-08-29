@@ -27,10 +27,14 @@ abstract class Matrix[M <: Int, N <: Int, A]:
   inline def ncolumns: N = constValue
   inline def nitems: M*N = constValue
 
+  /** Get the element at row i and column j. */
   inline def apply(inline i: Int, inline j: Int): A = data(i*ncolumns + j)
+  /** Set the element at row i and column j to v. */
   inline def update(inline i: Int, inline j: Int, inline v: A): Unit = data(i*ncolumns + j) = v
 
+  /** An iterator over all Matrix elements */
   inline def iterator: Iterator[A] = data.iterator
+  /** An iterator over row-iterators. */
   inline def rowsIt: Iterator[Iterator[A]] = new Iterator[Iterator[A]]:
     var i = 0
     override def hasNext: Boolean = i < nrows
@@ -46,6 +50,7 @@ abstract class Matrix[M <: Int, N <: Int, A]:
           j += 1
           r
 
+  /** An iterator over column-iterators. */
   inline def columnsIt: Iterator[Iterator[A]] = new Iterator[Iterator[A]]:
     var j = 0
     override def hasNext: Boolean = j < ncolumns
