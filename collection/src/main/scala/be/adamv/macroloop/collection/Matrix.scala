@@ -30,9 +30,34 @@ abstract class Matrix[M <: Int, N <: Int, A]:
   inline def apply(inline i: Int, inline j: Int): A = data(i*ncolumns + j)
   inline def update(inline i: Int, inline j: Int, inline v: A): Unit = data(i*ncolumns + j) = v
 
-  // FIXME probably want an Iterator[Iterator[A]] too because this copies all data
-  inline def rows: Iterator[Array[A]] = data.grouped(ncolumns)
-  // TODO how to implement columns?
+  inline def iterator: Iterator[A] = data.iterator
+  inline def rowsIt: Iterator[Iterator[A]] = new Iterator[Iterator[A]]:
+    var i = 0
+    override def hasNext: Boolean = i < nrows
+    override def next(): Iterator[A] =
+      i += 1
+      new Iterator[A]:
+        private val begin = (i - 1)*ncolumns
+        private val end = i*ncolumns
+        private var j = begin
+        override def hasNext: Boolean = j < end
+        override def next(): A =
+          val r = data(j)
+          j += 1
+          r
+
+  inline def columnsIt: Iterator[Iterator[A]] = new Iterator[Iterator[A]]:
+    var j = 0
+    override def hasNext: Boolean = j < ncolumns
+    override def next(): Iterator[A] =
+      j += 1
+      new Iterator[A]:
+        private var i = j - 1
+        override def hasNext: Boolean = i < nitems
+        override def next(): A =
+          val r = data(i)
+          i += ncolumns
+          r
 
   /** Filter all elements based on their (row, column) index. */
   inline def filterIndices(inline p: (Int, Int) => Boolean): Array[A] =
@@ -135,7 +160,7 @@ abstract class Matrix[M <: Int, N <: Int, A]:
   /** Pretty string, do not rely on the precise output. */
   inline def show: String =
     // TODO show equal-width columns, compress representation for large matrices
-    rows.map(row => row.mkString(",")).mkString("\n")
+    rowsIt.map(row => row.mkString(",")).mkString("\n")
 
   // FIXME standard equals is not-inlineable, so it doesn't allow checking dimensions
   /** Contains the same elements. */
@@ -230,10 +255,10 @@ object Matrix:
 
     // TODO show equal-width columns per vertical stack, compress representation for large inner and outer matrices
     /** Specialized representation for matrix containing matrices. */
-    inline def showNested: String = nested.rows
+    inline def showNested: String = nested.rowsIt
       .map(
         _.map(
-          _.rows.map(
+          _.rowsIt.map(
             _.mkString(" ")
           ).mkString("|")
         ).mkString("\n")

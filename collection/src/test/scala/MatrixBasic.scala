@@ -110,3 +110,11 @@ class MatrixBasic extends FunSuite:
   test("tiled") {
     assert(k3.tiled[2, 2] == k3tiled)
   }
+
+  test("rowsIt toSeqSeq") {
+    assert(g23.rowsIt.map(_.toSeq).toSeq == g23.toSeqSeq)
+  }
+
+  test("columnsIt transpose toSeqSeq") {
+    assert(g23.transpose.columnsIt.map(_.toSeq).toSeq == g23.toSeqSeq)
+  }
