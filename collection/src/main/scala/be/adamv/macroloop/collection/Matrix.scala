@@ -136,13 +136,29 @@ abstract class Matrix[M <: Int, N <: Int, A]:
       result(i, j) = add(result(i, j), combine(this(i, k), that(k, j)))
     result
 
-  // TODO remove the intermediate map
   /** Generalized kronecker (outer) product for different input matrix types and output type. */
   inline def kronecker[O <: Int, P <: Int, B, C](that: Matrix[O, P, B],
                                                  inline combine: (A, B) => C): Matrix[M*O, N*P, C] =
-    // workaround weird inlining "Term-dependent types are experimental" bug
-    def inner(a: A) = that.map(combine(a, _))
-    this.flatMap(inner)
+    val N = ncolumns
+    val O = that.nrows
+    val P = that.ncolumns
+    val H = N*P
+    val cdata = SizedArrayIndex.ofSize[M*O*N*P, C]
+    var s = 0
+    while s < nitems do
+      val sr = (s / N)*O
+      val sc = (s % N)*P
+      val a = data(s)
+      var t = 0
+      while t < that.nitems do
+        val tr = t / P
+        val tc = t % P
+        val b = that.data(t)
+        val c = combine(a, b)
+        cdata((sr + tr)*H + (sc + tc)) = c
+        t += 1
+      s += 1
+    Matrix.wrap(cdata)
 
   /** Generalized hadamard (element-wise) product for different input matrix types and output type. */
   inline def hadamard[B, C](that: Matrix[M, N, B],
