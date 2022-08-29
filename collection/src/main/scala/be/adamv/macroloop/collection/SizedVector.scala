@@ -30,14 +30,20 @@ abstract class SizedVector[N <: Int, A]:
   /** An iterator over all elements. */
   inline def iterator: Iterator[A] = data.iterator
 
-  // TODO use native copy
-  /** Structure the flat vector in a Matrix with given dimension. */
+  /** Interpret the flat vector in a Matrix with given dimension. */
   inline def reshape[O <: Int, P <: Int](using O*P =:= N): Matrix[O, P, A] =
-    Matrix.tabulate((i, j) => this(i*constValue[P] + j))
-  // TODO use native copy
+    Matrix.wrap(data.clone())
   /** Divide up this vector in DN chunks, creating a vector of vectors. */
   inline def chunked[DN <: Int](using N % DN =:= 0): SizedVector[DN, SizedVector[N/DN, A]] =
-    SizedVector.tabulate(di => SizedVector.tabulate(i => this(di*constValue[N/DN] + i)))
+    val ndata = SizedArrayIndex.ofSize[DN, SizedVector[N/DN, A]]
+    val isize = constValue[N/DN]
+    var i = 0
+    while i < length do
+      val idata = SizedArrayIndex.ofSize[N/DN, A]
+      Array.copy(data, i*isize, idata, 0, isize)
+      ndata(i) = SizedVector.wrap(idata)
+      i += 1
+    SizedVector.wrap(ndata)
   /** Take an I1 to I2 slice. */
   inline def slice[I1 <: Int, I2 <: Int]: SizedVector[I2 - I1, A] =
     SizedVector.wrap(data.slice(constValue[I1], constValue[I2]))
