@@ -79,9 +79,17 @@ abstract class SizedVector[N <: Int, A]:
   /** Generalized kronecker (outer) product for different input vector types and output type, flattened. */
   inline def kronecker[M <: Int, B, C](that: SizedVector[M, B],
                                        inline combine: (A, B) => C): SizedVector[M*N, C] =
-    // workaround weird inlining "Term-dependent types are experimental" bug
-    def inner(a: A) = that.map(combine(a, _))
-    this.flatMap(inner)
+    val cdata = SizedArrayIndex.ofSize[M*N, C]
+    var i = 0
+    while i < length do
+      val a = data(i)
+      val offset = i*constValue[M]
+      var j = 0
+      while j < that.length do
+        cdata(offset + j) = combine(a, that.data(j))
+        j += 1
+      i += 1
+    SizedVector.wrap(cdata)
 
   /** Generalized element-wise product for different input vector types and output type. */
   inline def elementwise[B, C](that: SizedVector[N, B],
