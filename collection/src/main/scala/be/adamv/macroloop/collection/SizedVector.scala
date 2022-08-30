@@ -30,9 +30,6 @@ abstract class SizedVector[N <: Int, A]:
   /** An iterator over all elements. */
   inline def iterator: Iterator[A] = data.iterator
 
-  /** Interpret the flat vector in a Matrix with given dimension. */
-  inline def reshape[O <: Int, P <: Int](using O*P =:= N): Matrix[O, P, A] =
-    Matrix.wrap(data.clone())
   /** Divide up this vector in DN chunks, creating a vector of vectors. */
   inline def chunked[DN <: Int](using N % DN =:= 0): SizedVector[DN, SizedVector[N/DN, A]] =
     val ndata = SizedArrayIndex.ofSize[DN, SizedVector[N/DN, A]]
@@ -108,11 +105,6 @@ abstract class SizedVector[N <: Int, A]:
       result = add(result, combine(this(i), that(i)))
     result
 
-  /** Generalized outer product for different input vector types and output type. */
-  inline def outer[M <: Int, B, C](that: SizedVector[M, B],
-                                   inline combine: (A, B) => C): Matrix[N, M, C] =
-    Matrix.tabulate[N, M, C]((i, j) => combine(this(i), that(j)))
-
   // FIXME standard toString is not-inlineable, so it doesn't allow a dimension-based representation
   /** Pretty string, do not rely on the precise output. */
   inline def show: String = data.mkString(",")
@@ -165,6 +157,12 @@ object SizedVector:
       Matrix.tabulate[M, N, A]((i, j) => nested(i)(j))
   
   extension [N <: Int, A](v: SizedVector[N, A])
+    /** Generalized outer product for different input vector types and output type. */
+    inline def outer[M <: Int, B, C](w: SizedVector[M, B],
+                                     inline combine: (A, B) => C): Matrix[N, M, C] =
+      Matrix.tabulate[N, M, C]((i, j) => combine(v(i), w(j)))
+    /** Interpret the flat vector in a Matrix with given dimension. */
+    inline def reshape[O <: Int, P <: Int](using O*P =:= N): Matrix[O, P, A] = Matrix.wrap(v.data.clone())
     /** Interpret the vector as a single-row matrix. */
     inline def asRow: Matrix[1, N, A] = Matrix.wrap(v.data.clone())
     /** Interpret the vector as a single-column matrix. */
