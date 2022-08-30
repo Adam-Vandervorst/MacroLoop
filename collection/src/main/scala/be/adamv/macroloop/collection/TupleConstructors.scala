@@ -3,6 +3,7 @@
  * Separated out to avoid cyclic imports.
  */
 package be.adamv.macroloop.collection
+import be.adamv.macroloop.collection.Laws.{*, given}
 
 // TODO maybe this can be encapsulated better; how does that combine with the `export`?
 object TupleConstructors:

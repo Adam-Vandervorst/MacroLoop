@@ -8,10 +8,10 @@
  */
 package be.adamv.macroloop.collection
 
-import be.adamv.macroloop.{ArrayIndex, IntRange, SizedArrayIndex}
-
 import scala.compiletime.constValue
 import scala.compiletime.ops.int.*
+import be.adamv.macroloop.{ArrayIndex, IntRange, SizedArrayIndex}
+import be.adamv.macroloop.collection.Laws.{*, given}
 
 /**
  * Array-backed Sized Vector imlementation with mutable entries.
@@ -19,6 +19,7 @@ import scala.compiletime.ops.int.*
  * @tparam A Element-type
  */
 abstract class SizedVector[N <: Int, A]:
+  erased given npos: Pred[N > 0]
   val data: Array[A]
   inline def length: N = constValue
 
@@ -31,10 +32,10 @@ abstract class SizedVector[N <: Int, A]:
   inline def iterator: Iterator[A] = data.iterator
 
   /** Interpret the flat vector in a Matrix with given dimension. */
-  inline def reshape[O <: Int, P <: Int](using O*P =:= N): Matrix[O, P, A] =
+  inline def reshape[O <: Int, P <: Int](using erased O*P =:= N, Pred[O > 0], Pred[P > 0]): Matrix[O, P, A] =
     Matrix.wrap(data.clone())
   /** Divide up this vector in DN chunks, creating a vector of vectors. */
-  inline def chunked[DN <: Int](using N % DN =:= 0): SizedVector[DN, SizedVector[N/DN, A]] =
+  inline def chunked[DN <: Int](using erased N % DN =:= 0, Pred[DN > 0], Pred[N > DN]): SizedVector[DN, SizedVector[N/DN, A]] =
     val ndata = SizedArrayIndex.ofSize[DN, SizedVector[N/DN, A]]
     val isize = constValue[N/DN]
     var i = 0
@@ -45,7 +46,7 @@ abstract class SizedVector[N <: Int, A]:
       i += 1
     SizedVector.wrap(ndata)
   /** Take an I1 to I2 slice. */
-  inline def slice[I1 <: Int, I2 <: Int]: SizedVector[I2 - I1, A] =
+  inline def slice[I1 <: Int, I2 <: Int](using erased Pred[I1 >= 0], Pred[I2 > I1], Pred[N > I2]): SizedVector[I2 - I1, A] =
     SizedVector.wrap(data.slice(constValue[I1], constValue[I2]))
 
   /** Seq of all elements. */
@@ -57,7 +58,7 @@ abstract class SizedVector[N <: Int, A]:
   inline def map[B](inline f: A => B): SizedVector[N, B] =
     SizedVector.wrap(SizedArrayIndex.mapUnrolled(data, constValue[N])(f))
   /** Each element gets expanded into a sub-vector by f. */
-  inline def flatMap[M <: Int, B](inline f: A => SizedVector[M, B]): SizedVector[M*N, B] =
+  inline def flatMap[M <: Int, B](inline f: A => SizedVector[M, B])(using erased Pred[M > 0]): SizedVector[M*N, B] =
     SizedVector.wrap(SizedArrayIndex.flatMapFullyUnrolled(data, constValue[N])(f(_).data, constValue[M]))
 
   /** Move kernel over the vector, combining all overlapping pairs, and accumulating them with add and zero into a new entry. */
@@ -78,7 +79,7 @@ abstract class SizedVector[N <: Int, A]:
 
   /** Generalized kronecker (outer) product for different input vector types and output type, flattened. */
   inline def kronecker[M <: Int, B, C](that: SizedVector[M, B],
-                                       inline combine: (A, B) => C): SizedVector[M*N, C] =
+                                       inline combine: (A, B) => C)(using erased Pred[M > 0]): SizedVector[M*N, C] =
     val cdata = SizedArrayIndex.ofSize[M*N, C]
     var i = 0
     while i < length do
@@ -110,7 +111,7 @@ abstract class SizedVector[N <: Int, A]:
 
   /** Generalized outer product for different input vector types and output type. */
   inline def outer[M <: Int, B, C](that: SizedVector[M, B],
-                                   inline combine: (A, B) => C): Matrix[N, M, C] =
+                                   inline combine: (A, B) => C)(using erased Pred[M > 0]): Matrix[N, M, C] =
     Matrix.tabulate[N, M, C]((i, j) => combine(this(i), that(j)))
 
   // FIXME standard toString is not-inlineable, so it doesn't allow a dimension-based representation
@@ -127,9 +128,10 @@ object SizedVector:
   export be.adamv.macroloop.collection.TupleConstructors.vectorApply as apply
 
   /** Size and data array to SizedVector. */
-  inline def wrap[N <: Int, A](inline initial: Array[A]): SizedVector[N, A] =
+  inline def wrap[N <: Int, A](inline initial: Array[A])(using erased ev: Pred[N > 0]): SizedVector[N, A] =
     assert(constValue[N] == initial.length) // NOTE not compiletime
     new:
+      erased given npos: Pred[N > 0] = ev
       override val data: Array[A] = initial
 
   extension [A](v: SizedVector[1, A])
@@ -137,7 +139,7 @@ object SizedVector:
   inline def asSingleElement[A](a: A): SizedVector[1, A] = SizedVector(Tuple1(a))
 
   /** Take N elements from an iterator to construct a SizedVector. */
-  inline def from[N <: Int, A](as: IterableOnce[A]): SizedVector[N, A] =
+  inline def from[N <: Int, A](as: IterableOnce[A])(using erased Pred[N > 0]): SizedVector[N, A] =
     val data: Array[A] = SizedArrayIndex.ofSize[N, A]
     val written = as.iterator.copyToArray(data, 0, constValue[N])
     assert(written == constValue[N])
@@ -146,25 +148,25 @@ object SizedVector:
   // TODO this probably not the expected behavior
   // TODO have a sparse class too?
   /** Like tabulate but for partial functions. */
-  inline def fromSparse[N <: Int, A](pf: PartialFunction[Int, A]): SizedVector[N, Option[A]] =
+  inline def fromSparse[N <: Int, A](pf: PartialFunction[Int, A])(using erased Pred[N > 0]): SizedVector[N, Option[A]] =
     SizedVector.tabulate(pf.unapply)
 
   /** Fill a SizedVector with elements dependent on their integer position. */
-  inline def tabulate[N <: Int, A](inline f: Int => A): SizedVector[N, A] =
+  inline def tabulate[N <: Int, A](inline f: Int => A)(using erased Pred[N > 0]): SizedVector[N, A] =
     val data: Array[A] = SizedArrayIndex.ofSize[N, A]
     IntRange.forEach(0, constValue[N], 1)(i => data(i) = f(i))
     SizedVector.wrap(data)
 
   /** Fill a vector with a certain element. */
-  inline def fill[N <: Int, A](v: A): SizedVector[N, A] = SizedVector.tabulate(_ => v)
+  inline def fill[N <: Int, A](v: A)(using erased Pred[N > 0]): SizedVector[N, A] = SizedVector.tabulate(_ => v)
 
-  extension [M <: Int, N <: Int, A](nested: SizedVector[M, SizedVector[N, A]])
+  extension [M <: Int, N <: Int, A](nested: SizedVector[M, SizedVector[N, A]])(using erased Pred[M > 0], Pred[N > 0])
     // TODO use copy primitives
     /** Interpreter the inner vectors as rows of a matrix. */
     inline def toMatrix: Matrix[M, N, A] =
       Matrix.tabulate[M, N, A]((i, j) => nested(i)(j))
   
-  extension [N <: Int, A](v: SizedVector[N, A])
+  extension [N <: Int, A](v: SizedVector[N, A])(using erased Pred[N > 0])
     /** Interpret the vector as a single-row matrix. */
     inline def asRow: Matrix[1, N, A] = Matrix.wrap(v.data.clone())
     /** Interpret the vector as a single-column matrix. */

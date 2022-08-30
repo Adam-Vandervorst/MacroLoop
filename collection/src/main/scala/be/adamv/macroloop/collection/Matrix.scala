@@ -10,7 +10,9 @@ package be.adamv.macroloop.collection
 
 import scala.compiletime.constValue
 import scala.compiletime.ops.int.*
+import scala.compiletime.ops.any.==
 import be.adamv.macroloop.{ArrayIndex, IntRange, SizedArrayIndex, IterableIt}
+import be.adamv.macroloop.collection.Laws.{*, given}
 
 
 // TODO likely want to abstract Matrix out to a trait, and allow different implementations.
@@ -22,6 +24,8 @@ import be.adamv.macroloop.{ArrayIndex, IntRange, SizedArrayIndex, IterableIt}
  * @tparam A Element-type
  */
 abstract class Matrix[M <: Int, N <: Int, A]:
+  erased given mpos: Pred[M > 0]
+  erased given npos: Pred[N > 0]
   val data: Array[A]
   inline def nrows: M = constValue
   inline def ncolumns: N = constValue
@@ -84,10 +88,10 @@ abstract class Matrix[M <: Int, N <: Int, A]:
   /** Eagerly transpose a matrix (swapping rows and columns). */
   inline def transpose: Matrix[N, M, A] = Matrix.tabulate((i, j) => this(j, i))
   /** Given row- and column-divisions DM and DN, divide up this matrix into smaller ones. */
-  inline def tiled[DM <: Int, DN <: Int](using M % DM =:= 0, N % DN =:= 0): Matrix[DM, DN, Matrix[M/DM, N/DN, A]] =
+  inline def tiled[DM <: Int, DN <: Int](using erased M % DM =:= 0, N % DN =:= 0, Pred[DM > 0], Pred[DN > 0]): Matrix[DM, DN, Matrix[M/DM, N/DN, A]] =
     Matrix.tabulate((di, dj) => Matrix.tabulate((i, j) => this(di*constValue[M/DM] + i, dj*constValue[N/DN] + j)))
   /** Given start-row, end-row, start-column, and end-column, select the sub-matrix. */
-  inline def slice[I1 <: Int, I2 <: Int, J1 <: Int, J2 <: Int]: Matrix[I2 - I1, J2 - J1, A] =
+  inline def slice[I1 <: Int, I2 <: Int, J1 <: Int, J2 <: Int](using erased Pred[I2 > I1], Pred[J2 > J1]): Matrix[I2 - I1, J2 - J1, A] =
     Matrix.tabulate((i, j) => this(constValue[I1] + i, constValue[J1] + j))
 
   /** Seq of all elements. */
@@ -103,7 +107,7 @@ abstract class Matrix[M <: Int, N <: Int, A]:
     IntRange.forEach(0, constValue[M*N], 1)(i => ndata(i) = f(data(i)))
     Matrix.wrap(ndata)
   /** Each element gets expanded into a sub-matrix by f. */
-  inline def flatMap[O <: Int, P <: Int, B](inline f: A => Matrix[O, P, B]): Matrix[M*O, N*P, B] = map(f).flatten
+  inline def flatMap[O <: Int, P <: Int, B](inline f: A => Matrix[O, P, B])(using erased Pred[O > 0], Pred[P > 0]): Matrix[M*O, N*P, B] = map(f).flatten
 
   // TODO what happens if the kernel is larger than the matrix here?
   /** Move kernel over the matrix, combining all overlapping pairs, and accumulating them with add and zero into a new entry. */
@@ -127,7 +131,7 @@ abstract class Matrix[M <: Int, N <: Int, A]:
 
   /** Generalized matrix multiplication for different input matrix types and output type. */
   inline def multiply[O <: Int, B, C](that: Matrix[N, O, B],
-      inline combine: (A, B) => C, inline add: (C, C) => C, inline zero: C): Matrix[M, O, C] =
+      inline combine: (A, B) => C, inline add: (C, C) => C, inline zero: C)(using erased Pred[O > 0]): Matrix[M, O, C] =
     val result = Matrix.fill[M, O, C](zero)
 
     for i <- 0 until this.nrows
@@ -138,7 +142,7 @@ abstract class Matrix[M <: Int, N <: Int, A]:
 
   /** Generalized kronecker (outer) product for different input matrix types and output type. */
   inline def kronecker[O <: Int, P <: Int, B, C](that: Matrix[O, P, B],
-                                                 inline combine: (A, B) => C): Matrix[M*O, N*P, C] =
+                                                 inline combine: (A, B) => C)(using erased Pred[O > 0], Pred[P > 0]): Matrix[M*O, N*P, C] =
     val N = ncolumns
     val O = that.nrows
     val P = that.ncolumns
@@ -181,7 +185,19 @@ abstract class Matrix[M <: Int, N <: Int, A]:
   /** Pretty string, do not rely on the precise output. */
   inline def show: String =
     // TODO show equal-width columns, compress representation for large matrices
-    rowsIt.map(row => row.mkString(",")).mkString("\n")
+    if nrows > 13 then
+      val t: Matrix[3, N, String] = slice[0, 3, 0, N].map(_.toString)
+      val b: Matrix[3, N, String] = slice[M - 3, M, 0, N].map(_.toString)
+      val dropped = constValue[M - 6]
+      val first3ss = t.rowsIt.map(_.mkString(" ")).toSeq
+      val last3ss = b.rowsIt.map(_.mkString(" ")).toSeq
+      val tb = Matrix(Tuple1(t), Tuple1(b)).flatten
+      println(tb.show)
+//      (first3ss zip last3ss).maxBy((f, l) => f.length max l.length)
+      val intermediates = f"\n...\nleft out $dropped\n...\n"
+      first3ss.mkString("\n") + intermediates + last3ss.mkString("\n")
+    else
+      rowsIt.map(_.mkString(" ")).mkString("\n")
 
   // FIXME standard equals is not-inlineable, so it doesn't allow checking dimensions
   /** Contains the same elements. */
@@ -193,10 +209,15 @@ abstract class Matrix[M <: Int, N <: Int, A]:
 object Matrix:
   export be.adamv.macroloop.collection.TupleConstructors.matrixApply as apply
 
+  implicit inline def convertSize[M <: Int, N <: Int, M2 <: Int, N2 <: Int, A](x: Matrix[M, N, A])
+    (using erased Pred[M2 == M], Pred[N2 == N]): Matrix[M2, N2, A] = x.asInstanceOf
+
   /** Sizes and data array to Matrix. */
-  inline def wrap[M <: Int, N <: Int, A](inline initial: Array[A]): Matrix[M, N, A] =
+  inline def wrap[M <: Int, N <: Int, A](inline initial: Array[A])(using erased ev1: Pred[M > 0], ev2: Pred[N > 0]): Matrix[M, N, A] =
     assert(constValue[M*N] == initial.length) // NOTE not compiletime
     new:
+      erased given mpos: Pred[M > 0] = ev1
+      erased given npos: Pred[N > 0] = ev2
       override val data: Array[A] = initial
 
   // TODO decide on what to do with 0-element matrices
@@ -205,14 +226,14 @@ object Matrix:
   inline def asSingleElement[A](a: A): Matrix[1, 1, A] = Matrix.fill(a)
 
   /** Take M*N elements from an iterator to construct a Matrix. */
-  inline def from[M <: Int, N <: Int, A](as: IterableOnce[A]): Matrix[M, N, A] =
+  inline def from[M <: Int, N <: Int, A](as: IterableOnce[A])(using erased Pred[M > 0], Pred[N > 0]): Matrix[M, N, A] =
     val data: Array[A] = SizedArrayIndex.ofSize[M*N, A]
     val written = as.iterator.copyToArray(data, 0, constValue[M*N])
     assert(written == constValue[M*N])
     Matrix.wrap(data)
 
   /** Take M iterators from an iterator and take N of each of those to construct a Matrix. */
-  inline def from2D[M <: Int, N <: Int, A](ass: IterableOnce[IterableOnce[A]]): Matrix[M, N, A] =
+  inline def from2D[M <: Int, N <: Int, A](ass: IterableOnce[IterableOnce[A]])(using erased Pred[M > 0], Pred[N > 0]): Matrix[M, N, A] =
     val m = constValue[M]
     val n = constValue[N]
     val size = m*n
@@ -230,11 +251,11 @@ object Matrix:
   // TODO this probably not the expected behavior
   // TODO have a sparse class too?
   /** Like tabulate but for partial functions. */
-  inline def fromSparse[M <: Int, N <: Int, A](pf: PartialFunction[(Int, Int), A]): Matrix[M, N, Option[A]] =
+  inline def fromSparse[M <: Int, N <: Int, A](pf: PartialFunction[(Int, Int), A])(using erased Pred[M > 0], Pred[N > 0]): Matrix[M, N, Option[A]] =
     Matrix.tabulate(pf.unapply(_, _))
 
   /** Fill a matrix with elements dependent on their (row, column) position. */
-  inline def tabulate[M <: Int, N <: Int, A](inline f: (Int, Int) => A): Matrix[M, N, A] =
+  inline def tabulate[M <: Int, N <: Int, A](inline f: (Int, Int) => A)(using erased Pred[M > 0], Pred[N > 0]): Matrix[M, N, A] =
     val m = constValue[M]
     val n = constValue[N]
     val data: Array[A] = SizedArrayIndex.ofSize[M*N, A]
@@ -248,17 +269,17 @@ object Matrix:
     Matrix.wrap(data)
 
   /** Fill a matrix with a certain element. */
-  inline def fill[M <: Int, N <: Int, A](v: A): Matrix[M, N, A] =
+  inline def fill[M <: Int, N <: Int, A](v: A)(using erased Pred[M > 0], Pred[N > 0]): Matrix[M, N, A] =
     val data: Array[A] = SizedArrayIndex.ofSize[M*N, A]
     IntRange.forEach(0, constValue[M*N], 1)(i => data(i) = v)
     Matrix.wrap(data)
 
   // TODO implement as constant type-based functions?
-  extension [M <: Int, N <: Int](m: Matrix[M, N, _])
+  extension [M <: Int, N <: Int](m: Matrix[M, N, _])(using erased Pred[M > 0], Pred[N > 0])
     /** Check if a matrix is square. */
     inline def isSquare: Boolean = m.nrows == m.ncolumns
 
-  extension [N <: Int, A](m: Matrix[N, N, A])
+  extension [N <: Int, A](m: Matrix[N, N, A])(using erased Pred[N > 0])
     // TODO unnecessary copy and allocation here; sized filterIndices or specialized implementation?
     /** Get the elements on the diagonal. */
     inline def diagonal: SizedVector[N, A] = SizedVector.wrap(m.filterIndices(_ == _))
@@ -268,7 +289,7 @@ object Matrix:
 
   // TODO add asVectors conversion using copyRange
 
-  extension [M <: Int, N <: Int, O <: Int, P <: Int, A](nested: Matrix[M, N, Matrix[O, P, A]])
+  extension [M <: Int, N <: Int, O <: Int, P <: Int, A](nested: Matrix[M, N, Matrix[O, P, A]])(using erased Pred[M > 0], Pred[N > 0], Pred[O > 0], Pred[P > 0])
     /** Flatten out a matrix containing matrices with the appropriate sizes. */
     inline def flatten: Matrix[M*O, N*P, A] =
       val o = constValue[O]; val p = constValue[P]
@@ -288,10 +309,10 @@ object Matrix:
 
   // TODO the Fractional and Ordering abstractions are likely not in the interested of performance
   // FIXME since average and median don't utilize the matrix structure, they are bad examples
-  extension [M <: Int, N <: Int, A](g: Matrix[M, N, A])(using n: Fractional[A])
+  extension [M <: Int, N <: Int, A](g: Matrix[M, N, A])(using n: Fractional[A])(using erased Pred[M > 0], Pred[N > 0])
     /** Statistical average of all elements. */
     inline def average: A = n.div(g.data.fold(n.zero)(n.plus), n.fromInt(g.data.length))
 
-  extension [M <: Int, N <: Int, A](g: Matrix[M, N, A])(using n: Ordering[A])
+  extension [M <: Int, N <: Int, A](g: Matrix[M, N, A])(using n: Ordering[A])(using erased Pred[M > 0], Pred[N > 0])
     /** Statistical median of all elements. */
     inline def median: A = g.data.sorted(using n)(g.data.length/2)

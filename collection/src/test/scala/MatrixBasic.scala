@@ -118,3 +118,8 @@ class MatrixBasic extends FunSuite:
   test("columnsIt transpose toSeqSeq") {
     assert(g23.transpose.columnsIt.map(_.toSeq).toSeq == g23.toSeqSeq)
   }
+
+  test("show") {
+    val m = Matrix.tabulate[20, 5, (Int, Int)]((_, _))
+    println(m.show)
+  }

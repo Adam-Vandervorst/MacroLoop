@@ -39,4 +39,5 @@ lazy val collection = project.in(file("collection"))
   .settings(publishSettings)
   .settings(
     name := "macroloop-collection",
+    scalacOptions += "-language:experimental.erasedDefinitions"
 )

@@ -5,8 +5,9 @@
  */
 package be.adamv.macroloop.collection.macros
 
-import be.adamv.macroloop.macros.{untuple, SizedArrayIndexImpl}
+import be.adamv.macroloop.macros.{SizedArrayIndexImpl, untuple}
 import be.adamv.macroloop.collection.{Matrix, SizedVector}
+import be.adamv.macroloop.collection.Laws.{*, given}
 
 import scala.quoted.*
 
@@ -19,23 +20,32 @@ def concreteMatrixImpl[M <: Int : Type, N <: Int : Type, A : Type](rowse: Expr[T
   val nrows = rows.length
   val elements: Seq[Seq[Expr[A]]] = rows.map(untuple[A])
   val ncolumns = elements.head.length
-  
+
   // FIXME we don't actually *need* M and N to correspond to nrows and ncolumns, are there any good usecases where these checks fail?
   // TODO throw decent errors
-  assert(Type.valueOfConstant[M].get == nrows)
-  assert(Type.valueOfConstant[N].get == ncolumns)
+  val M = Type.valueOfConstant[M].get
+  val N = Type.valueOfConstant[N].get
+  assert(M > 0)
+  assert(N > 0)
+  assert(M == nrows)
+  assert(N == ncolumns)
   assert(elements.forall(_.length == ncolumns))
 
   // TODO Special case empty tuple (of tuples)?
   '{
     val ar = ${ SizedArrayIndexImpl.ofSizeImpl[A](Expr(nrows*ncolumns)) }
     ${
-    Expr.block(elements.zipWithIndex.flatMap((row: Seq[Expr[A]], i: Int) => 
-      row.zipWithIndex.map((e, j) => 
+    Expr.block(elements.zipWithIndex.flatMap((row: Seq[Expr[A]], i: Int) =>
+      row.zipWithIndex.map((e, j) =>
         '{ ar(${ Expr(i*ncolumns + j) }) = $e })).toList,
-      '{ new Matrix[M, N, A]{ override val data: Array[A] = ar } })
+      '{ new Matrix[M, N, A]{
+          erased given mpos: Pred[M > 0] = assume
+          erased given npos: Pred[N > 0] = assume
+          override val data: Array[A] = ar
+      } })
     }
   }
+
 
 /**
  * Takes desired vector length and converts a tuple literal to an array with the tuple contents (wrapped by SizedVector).
@@ -46,14 +56,19 @@ def concreteVectorImpl[N <: Int : Type, A : Type](elementse: Expr[Tuple])(using 
 
   // FIXME we don't actually *need* N to correspond to size, are there any good usecases where this check fails?
   // TODO throw a decent error
-  assert(Type.valueOfConstant[N].get == size)
+  val N = Type.valueOfConstant[N].get
+  assert(N > 0)
+  assert(N == size)
 
   // TODO Special case empty tuple?
   '{
     val ar = ${ SizedArrayIndexImpl.ofSizeImpl[A](Expr(size)) }
     ${
-      Expr.block(elements.zipWithIndex.map((m, i) => 
+      Expr.block(elements.zipWithIndex.map((m, i) =>
         '{ ar(${ Expr(i) }) = $m }).toList,
-        '{ new SizedVector[N, A]{ override val data: Array[A] = ar } })
+        '{ new SizedVector[N, A]{
+            erased given npos: Pred[N > 0] = assume
+            override val data: Array[A] = ar
+        } })
     }
   }
