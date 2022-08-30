@@ -253,6 +253,16 @@ object Matrix:
     IntRange.forEach(0, constValue[M*N], 1)(i => data(i) = v)
     Matrix.wrap(data)
 
+  extension [M <: Int, N <: Int, A](m: Matrix[M, N, A])
+    inline def foldRows[B](z: B)(op: (B, A) => B): SizedVector[M, B] =
+      val ar = SizedArrayIndex.ofSize[M, B]
+      m.rowsIt.map(_.foldLeft(z)(op)).copyToArray(ar)
+      SizedVector.wrap(ar)
+    inline def foldColumns[B](z: B)(op: (B, A) => B): SizedVector[N, B] =
+      val ar = SizedArrayIndex.ofSize[N, B]
+      m.columnsIt.map(_.foldLeft(z)(op)).copyToArray(ar)
+      SizedVector.wrap(ar)
+
   // TODO implement as constant type-based functions?
   extension [M <: Int, N <: Int](m: Matrix[M, N, _])
     /** Check if a matrix is square. */
