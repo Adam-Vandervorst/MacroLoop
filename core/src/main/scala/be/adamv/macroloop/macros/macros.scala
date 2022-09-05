@@ -115,19 +115,23 @@ def tupleToExpr[Tup <: Tuple : Type](t: Tuple.Map[Tup, Expr])(using Quotes): Exp
   val tupleApply = Select.unique(tupleObject.asTerm, "apply")
   Apply(TypeApply(tupleApply, types.map(Inferred(_))), terms).asExprOf[Tup]
 
-def lambdaDestruct(using q: Quotes)(f: q.reflect.Term): (q.reflect.Symbol, q.reflect.Term) =
+def lambdaDestruct(using q: Quotes)(f: q.reflect.Term): Option[(q.reflect.Symbol, q.reflect.Term)] =
   import quotes.reflect.*
   simplifyTrivialInline(f) match
-    case Block(List(DefDef(_, List(TermParamClause(List(vdef))), _, Some(body))), _: q.reflect.Closure) => (vdef.symbol, body)
+    case Block(List(DefDef(_, List(TermParamClause(List(vdef))), _, Some(body))), _: q.reflect.Closure) => Some((vdef.symbol, body))
+    case _ => None
 
 def applyTupleDestruct[Tup <: Tuple : Type, R : Type](t: Tuple.Map[Tup, Expr], f: Expr[Tup => R])(using q: Quotes): Expr[R] =
   import quotes.reflect.*
   import reflect.Selectable.reflectiveSelectable
-  val (symbol, body) = lambdaDestruct(f.asTerm)
-  val reduced = constantFoldSelected(body, (x, n) =>
-    Option.when(symbol == x)(t.asInstanceOf[Tuple.Map[Tup, Expr] & Selectable].selectDynamic(n).asInstanceOf[Expr[Any]].asTerm))
-  // TODO constant fold apply too
-  reduced.asExprOf[R]
+  lambdaDestruct(f.asTerm) match
+    case Some((symbol, body)) =>
+      val reduced = constantFoldSelected(body, (x, n) =>
+        Option.when(symbol == x)(t.asInstanceOf[Tuple.Map[Tup, Expr] & Selectable].selectDynamic(n).asInstanceOf[Expr[Any]].asTerm))
+      // TODO constant fold apply too
+      reduced.asExprOf[R]
+    case None =>
+      '{ $f(${ tupleToExpr[Tup](t) }) }
 
 import quoted.FromExpr.BooleanFromExpr
 val PrimitiveFromExpr = quoted.FromExpr.BooleanFromExpr.asInstanceOf[FromExpr[Const]]
