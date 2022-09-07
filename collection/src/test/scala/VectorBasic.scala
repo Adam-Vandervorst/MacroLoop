@@ -24,3 +24,9 @@ class VectorBasic extends FunSuite:
   test("hadamard") {
     assert(v1.elementwise(v2, _ * _) == v4)
   }
+
+  test("destruct") {
+//    println(SizedVector.unapply(v1)) // works fine
+    val SizedVector(a, b) = v1
+    println(s"a: $a, b: $b")
+  }

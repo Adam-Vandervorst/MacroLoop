@@ -116,7 +116,7 @@ abstract class SizedVector[N <: Int, A]:
 
 
 object SizedVector:
-  export be.adamv.macroloop.collection.TupleConstructors.vectorApply as apply
+  export be.adamv.macroloop.collection.TupleConstructors.{vectorApply as apply, vectorUnapply as unapply}
 
   /** Size and data array to SizedVector. */
   inline def wrap[N <: Int, A](inline initial: Array[A]): SizedVector[N, A] =

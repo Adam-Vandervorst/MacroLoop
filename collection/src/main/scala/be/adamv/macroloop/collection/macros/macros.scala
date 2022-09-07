@@ -5,7 +5,8 @@
  */
 package be.adamv.macroloop.collection.macros
 
-import be.adamv.macroloop.macros.{untuple, SizedArrayIndexImpl}
+import be.adamv.macroloop.collection.TupleConstructors.RepeatN
+import be.adamv.macroloop.macros.{SizedArrayIndexImpl, untuple}
 import be.adamv.macroloop.collection.{Matrix, SizedVector}
 
 import scala.quoted.*
@@ -57,3 +58,12 @@ def concreteVectorImpl[N <: Int : Type, A : Type](elementse: Expr[Tuple])(using 
         '{ new SizedVector[N, A]{ override val data: Array[A] = ar } })
     }
   }
+
+/**
+ * Takes a sized vector and converts it to a tuple literal with the array contents.
+ */
+def destructVectorImpl[N <: Int : Type, A: Type](elementse: Expr[SizedVector[N, A]])(using Quotes): Expr[RepeatN[A, N]] =
+  val size = Type.valueOfConstant[N].get
+  val elements = Seq.tabulate(size)(i => '{ $elementse.data(${ Expr(i) }) })
+
+  Expr.ofTupleFromSeq(elements).asInstanceOf[Expr[RepeatN[A, N]]]

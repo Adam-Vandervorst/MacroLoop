@@ -7,6 +7,7 @@ package be.adamv.macroloop.collection
 // TODO maybe this can be encapsulated better; how does that combine with the `export`?
 object TupleConstructors:
   import be.adamv.macroloop.collection.macros.*
+  import compiletime.ops.int.S
 
   /**
    * Allows for Vector(1, 2, 3) syntax, converting the tuple into the regular flat array.
@@ -17,6 +18,13 @@ object TupleConstructors:
       Tuple.Size[Tup],
       Tuple.Union[Tup]
     ]('elements) }
+
+  type RepeatN[T, I <: Int] <: Tuple = I match
+    case 0 => EmptyTuple
+    case S[n] => T *: RepeatN[T, n]
+
+  transparent inline def vectorUnapply[N <: Int, A](inline v: SizedVector[N, A]): RepeatN[A, N] =
+    ${ destructVectorImpl[N, A]('v) }
 
   // TODO maybe the type errors can be improved by adding a type bound or doing this calculation in the macro.
   type AsTuple[X] <: Tuple = X match
