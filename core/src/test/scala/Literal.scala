@@ -239,8 +239,10 @@ class LiteralArrayIndex extends LiteralFunSuite:
   }
 
 class LiteralConstantTuple extends LiteralFunSuite:
-  test("insert") {
-    assertCodeMatches(ConstantTuple.insert(1, 2, 3)(3, 4), Tuple4[1, 2, 3, 4](1, 2, 3, 4))
+  test("insert prepend append") {
+    assertCodeMatches(ConstantTuple.insert(1, 2, 4)(2, 3), Tuple4[1, 2, 3, 4](1, 2, 3, 4))
+    assertCodeMatches(ConstantTuple.preprend(1, 2, 3)(0), Tuple4[0, 1, 2, 3](0, 1, 2, 3))
+    assertCodeMatches(ConstantTuple.append(1, 2, 3)(4), Tuple4[1, 2, 3, 4](1, 2, 3, 4))
   }
 
   test("concat") {

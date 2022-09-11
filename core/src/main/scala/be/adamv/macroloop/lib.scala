@@ -82,6 +82,11 @@ object ConstantTuple:
     case _: EmptyTuple => Nil
     case _: (head *: tail) => constValue[head] :: constToList[tail]
 
+  transparent inline infix def preprend[Tup <: Tuple, I <: Int, X](inline t: Tup)(inline x: X): Tuple =
+    insert(t)(0, x)
+
+  transparent inline infix def append[Tup <: Tuple, I <: Int, X](inline t: Tup)(inline x: X): Tuple =
+    insert(t)(constValue[Tuple.Size[Tup]], x)
 
   transparent inline infix def insert[Tup <: Tuple, I <: Int, X](inline t: Tup)(inline pos: I, inline x: X): Tuple =
     ${ ConstantTupleImpl.insert('t, 'pos, 'x) }
