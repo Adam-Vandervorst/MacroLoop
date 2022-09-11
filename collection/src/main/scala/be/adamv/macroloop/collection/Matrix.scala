@@ -252,11 +252,11 @@ object Matrix:
     Matrix.wrap(data)
 
   extension [M <: Int, N <: Int, A](m: Matrix[M, N, A])
-    inline def foldRows[B](z: B)(op: (B, A) => B): SizedVector[M, B] =
+    inline def foldColumns[B](z: B)(op: (B, A) => B): SizedVector[M, B] =
       val ar = SizedArrayIndex.ofSize[M, B]
       m.rowsIt.map(_.foldLeft(z)(op)).copyToArray(ar)
       SizedVector.wrap(ar)
-    inline def foldColumns[B](z: B)(op: (B, A) => B): SizedVector[N, B] =
+    inline def foldRows[B](z: B)(op: (B, A) => B): SizedVector[N, B] =
       val ar = SizedArrayIndex.ofSize[N, B]
       m.columnsIt.map(_.foldLeft(z)(op)).copyToArray(ar)
       SizedVector.wrap(ar)
