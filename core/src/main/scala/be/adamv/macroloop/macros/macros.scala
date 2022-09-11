@@ -385,6 +385,11 @@ object ConstantListImpl:
     Expr.ofTupleFromSeq(unlist(l))
 
 object ConstantTupleImpl:
+  def concat[T1 <: Tuple : Type, T2 <: Tuple : Type](t1e: Expr[T1], t2e: Expr[T2])(using Quotes): Expr[Tuple.Concat[T1, T2]] =
+    val t1seq = untuple[Any](t1e)
+    val t2seq = untuple[Any](t2e)
+    Expr.ofTupleFromSeq(t1seq ++ t2seq).asInstanceOf[Expr[Tuple.Concat[T1, T2]]]
+
   def forEachUnrolled[Tup <: Tuple : Type](t: Expr[Tup], f: Expr[Any => Unit])(using Quotes): Expr[Unit] =
     val bseq = untuple[Any](t)
     val exprs = bseq.map(arg => exprTransform[Unit](simplifyTrivialValDef)(betaReduceFixE('{ $f($arg) })))

@@ -82,6 +82,9 @@ object ConstantTuple:
     case _: EmptyTuple => Nil
     case _: (head *: tail) => constValue[head] :: constToList[tail]
 
+  transparent inline infix def concat[T1 <: Tuple, T2 <: Tuple](inline t1: T1, inline t2: T2): Tuple.Concat[T1, T2] =
+    ${ ConstantTupleImpl.concat('t1, 't2) }
+
   inline def forEachUnrolled[Tup <: Tuple](inline t: Tup)(inline f: Any => Unit): Unit =
     ${ ConstantTupleImpl.forEachUnrolled('t, 'f) }
 
@@ -93,10 +96,6 @@ object ConstantTuple:
 
   inline def mapBoundedUnrolled[Tup <: Tuple, B, R](inline t: Tup)(inline f: B => R): Tuple.Map[Tup, [_] =>> R] =
     ${ ConstantTupleImpl.mapBoundedUnrolled('t, 'f) }
-
-//  inline def mapPFCompiletime[Tup <: NonEmptyTuple, R](inline t: Tup)(inline f: PartialFunction[Any, R]): Tuple.Map[Tup, [_] =>> R] =
-//    ${ staging.ConstantTuple.mapPF('t, 'f) }
-
 
 object ConstantArgs:
   inline def forEachUnrolled(inline args: Any*)(inline f: Any => Unit): Unit =

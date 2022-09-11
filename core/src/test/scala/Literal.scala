@@ -239,6 +239,10 @@ class LiteralArrayIndex extends LiteralFunSuite:
   }
 
 class LiteralConstantTuple extends LiteralFunSuite:
+  test("concat") {
+    assertCodeMatches(ConstantTuple.concat((1, 2, 3), (4, 5)), Tuple5[1, 2, 3, 4, 5](1, 2, 3, 4, 5))
+  }
+
   test("forEachUnrolled TupleN") {
     assertCodeMatches(ConstantTuple.forEachUnrolled(ConstantList.toTuple22(ConstantTuple.constToList['a' *: 1 *: 2 *: EmptyTuple]))(println), {
       println('a')
