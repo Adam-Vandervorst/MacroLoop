@@ -40,7 +40,7 @@ def stripCast(using q: Quotes): q.reflect.Term => q.reflect.Term =
   import quotes.reflect.*
   def rec(tree: Term): Term = tree match
     case Inlined(_, Nil, e) => rec(e)
-    case TypeApply(Select(x, "asInstanceOf" | "$asInstanceOf$"), _) => x
+    case TypeApply(Select(x, "asInstanceOf" | "$asInstanceOf$"), _) => rec(x)
     case x => x
   rec
 
@@ -390,7 +390,7 @@ object ConstantTupleImpl:
     val exprs = bseq.map(arg => exprTransform[Unit](simplifyTrivialValDef)(betaReduceFixE('{ $f($arg) })))
     Expr.block(exprs.init.toList, exprs.last)
 
-  def forEachBoundedUnrolled[Tup <: Tuple : Type, B : Type](t: Expr[Tuple.Map[Tup, [_] =>> B]], f: Expr[B => Unit])(using Quotes): Expr[Unit] =
+  def forEachBoundedUnrolled[Tup <: Tuple : Type, B : Type](t: Expr[Tup], f: Expr[B => Unit])(using Quotes): Expr[Unit] =
     val bseq = untuple[B](t)
     val exprs = bseq.map(arg => exprTransform[Unit](simplifyTrivialValDef)(betaReduceFixE('{ $f($arg) })))
     Expr.block(exprs.init.toList, exprs.last)

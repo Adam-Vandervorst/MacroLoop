@@ -85,7 +85,7 @@ object ConstantTuple:
   inline def forEachUnrolled[Tup <: Tuple](inline t: Tup)(inline f: Any => Unit): Unit =
     ${ ConstantTupleImpl.forEachUnrolled('t, 'f) }
 
-  inline def forEachBoundedUnrolled[Tup <: Tuple, B](inline t: Tuple.Map[Tup, [_] =>> B])(inline f: B => Unit): Unit =
+  inline def forEachBoundedUnrolled[Tup <: Tuple, B](inline t: Tup)(inline f: B => Unit): Unit =
     ${ ConstantTupleImpl.forEachBoundedUnrolled('t, 'f) }
 
   inline def mapUnrolled[Tup <: Tuple, F[_]](inline t: Tup)(inline f: [X] => X => F[X]): Tuple.Map[Tup, F] =
