@@ -82,6 +82,10 @@ object ConstantTuple:
     case _: EmptyTuple => Nil
     case _: (head *: tail) => constValue[head] :: constToList[tail]
 
+
+  transparent inline infix def insert[Tup <: Tuple, I <: Int, X](inline t: Tup)(inline pos: I, inline x: X): Tuple =
+    ${ ConstantTupleImpl.insert('t, 'pos, 'x) }
+
   transparent inline infix def concat[T1 <: Tuple, T2 <: Tuple](inline t1: T1, inline t2: T2): Tuple.Concat[T1, T2] =
     ${ ConstantTupleImpl.concat('t1, 't2) }
 
