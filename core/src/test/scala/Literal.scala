@@ -255,11 +255,11 @@ class LiteralConstantTuple extends LiteralFunSuite:
     }: Unit)
   }
 
-  test("forEachUnrolled asInstanceOf") {
-    assertCodeMatches(ConstantTuple.forEachUnrolled(stripCast(('a', 1, None).asInstanceOf[Tuple]))(println), {
-      println('a')
-      println(1)
-      println(None)
+  test("forEachBoundedUnrolled asInstanceOf") {
+    assertCodeMatches(ConstantTuple.forEachBoundedUnrolled((1, 2, 3).asInstanceOf)((x: Int) => println(java.lang.Integer.toBinaryString(x))), {
+      println(java.lang.Integer.toBinaryString(1))
+      println(java.lang.Integer.toBinaryString(2))
+      println(java.lang.Integer.toBinaryString(3))
     }: Unit)
   }
 

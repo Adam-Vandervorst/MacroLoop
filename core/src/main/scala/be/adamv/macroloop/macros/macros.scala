@@ -29,17 +29,20 @@ def showTreeImpl(e: Expr[Any])(using Quotes): Expr[String] =
   import quotes.reflect.*
   Expr(e.asTerm.show(using Printer.TreeStructure))
 
-def stripCastImpl[T](e: Expr[T])(using Quotes): Expr[T] =
+def stripCastImpl[T : Type](e: Expr[T])(using Quotes): Expr[T] =
+  exprTransform[T](stripCast)(e)
+
+def translateCodeImpl(x: Expr[Any], y: Expr[Any])(using Quotes): Expr[Any] =
+  import quotes.reflect.*
+  renameBoundFrom(x.asTerm, y.asTerm).asExpr
+
+def stripCast(using q: Quotes): q.reflect.Term => q.reflect.Term =
   import quotes.reflect.*
   def rec(tree: Term): Term = tree match
     case Inlined(_, Nil, e) => rec(e)
     case TypeApply(Select(x, "asInstanceOf" | "$asInstanceOf$"), _) => x
     case x => x
-  rec(e.asTerm).asExpr.asInstanceOf[Expr[T]]
-
-def translateCodeImpl(x: Expr[Any], y: Expr[Any])(using Quotes): Expr[Any] =
-  import quotes.reflect.*
-  renameBoundFrom(x.asTerm, y.asTerm).asExpr
+  rec
 
 def replaceAllRefs(using q: Quotes)(mapping: Map[q.reflect.Symbol, q.reflect.Term])(x: q.reflect.Term): q.reflect.Term =
   import quotes.reflect.*
@@ -117,7 +120,7 @@ def untuple[B : Type](e: Expr[Tuple])(using Quotes): Seq[Expr[B]] =
     // UNSAFE, assume tuple
     case Apply(_, args) => args.map(_.asExprOf[B])
     case _ => report.errorAndAbort(s"couldn't untuple tree ${tree.show}")
-  rec(e.asTerm)
+  rec(stripCast(e.asTerm))
 
 def tupleToExpr[Tup <: Tuple : Type](t: Tuple.Map[Tup, Expr])(using Quotes): Expr[Tup] =
   import quotes.reflect.*
@@ -384,6 +387,11 @@ object ConstantListImpl:
 object ConstantTupleImpl:
   def forEachUnrolled[Tup <: Tuple : Type](t: Expr[Tup], f: Expr[Any => Unit])(using Quotes): Expr[Unit] =
     val bseq = untuple[Any](t)
+    val exprs = bseq.map(arg => exprTransform[Unit](simplifyTrivialValDef)(betaReduceFixE('{ $f($arg) })))
+    Expr.block(exprs.init.toList, exprs.last)
+
+  def forEachBoundedUnrolled[Tup <: Tuple : Type, B : Type](t: Expr[Tuple.Map[Tup, [_] =>> B]], f: Expr[B => Unit])(using Quotes): Expr[Unit] =
+    val bseq = untuple[B](t)
     val exprs = bseq.map(arg => exprTransform[Unit](simplifyTrivialValDef)(betaReduceFixE('{ $f($arg) })))
     Expr.block(exprs.init.toList, exprs.last)
 
