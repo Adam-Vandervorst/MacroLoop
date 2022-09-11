@@ -100,16 +100,46 @@ class LiteralIt extends LiteralFunSuite:
   }
 
 class LiteralSizedArrayIndex extends LiteralFunSuite:
+  test("map") {
+    val a = Array(1, 2, 3)
+
+    assertCodeMatches(SizedArrayIndex.map(a, 3)(2 * _), {
+      val na: Array[Int] = new Array[Int](3)
+      var i: Int = 0
+      while i < 3 do
+        na(i) = 2*a(i)
+        i += 1
+      na
+    }: Array[Int])
+  }
+  
   test("mapUnrolled") {
     val a = Array(1, 2, 3)
 
     assertCodeMatches(SizedArrayIndex.mapUnrolled(a, 3)(_ + 1), {
       val na: Array[Int] = new Array[Int](3)
-      na.update(0, a.apply(0).+(1))
-      na.update(1, a.apply(1).+(1))
-      na.update(2, a.apply(2).+(1))
+      na(0) = a(0) + 1
+      na(1) = a(1) + 1
+      na(2) = a(2) + 1
+      na
+    }: Array[Int])
+  }
 
-      (na: Array[Int])
+  test("mapUnrolledN") {
+    val a = Array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+
+    assertCodeMatches(SizedArrayIndex.mapUnrolledN(3)(a, 10)(2*_), {
+      val na: Array[Int] = new Array[Int](10)
+      na(0) = 2*a(0)
+      var i: Int = 1
+      while i < 10 do
+        na(i) = 2*a(i)
+        i += 1
+        na(i) = 2*a(i)
+        i += 1
+        na(i) = 2*a(i)
+        i += 1
+      na
     }: Array[Int])
   }
 
@@ -143,6 +173,20 @@ class LiteralArrayIndex extends LiteralFunSuite:
         println(x)
         i += 1
     }: Unit)
+  }
+
+  test("map") {
+    val a = Array(1, 2, 3)
+
+    assertCodeMatches(ArrayIndex.map(a)(2*_), {
+      val size: Int = a.length
+      val na: Array[Int] = new Array[Int](size)
+      var i: Int = 0
+      while i < size do
+        na(i) = 2*a(i)
+        i += 1
+      na: Array[Int]
+    }: Array[Int])
   }
 
   test("forEachUnrolledN") {

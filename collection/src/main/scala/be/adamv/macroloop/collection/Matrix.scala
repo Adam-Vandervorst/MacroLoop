@@ -99,9 +99,7 @@ abstract class Matrix[M <: Int, N <: Int, A]:
   inline def forEach(inline f: A => Unit): Unit = ArrayIndex.forEach(data)(f)
   /** Same size matrix with its elements transformed by f. */
   inline def map[B](inline f: A => B): Matrix[M, N, B] =
-    val ndata = SizedArrayIndex.ofSize[M*N, B]
-    IntRange.forEach(0, constValue[M*N], 1)(i => ndata(i) = f(data(i)))
-    Matrix.wrap(ndata)
+    Matrix.wrap(SizedArrayIndex.mapForSize(data, constValue[M*N])(f))
   /** Each element gets expanded into a sub-matrix by f. */
   inline def flatMap[O <: Int, P <: Int, B](inline f: A => Matrix[O, P, B]): Matrix[M*O, N*P, B] = map(f).flatten
 

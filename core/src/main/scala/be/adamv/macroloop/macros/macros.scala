@@ -216,16 +216,44 @@ object SizedArrayIndexImpl:
             report.errorAndAbort(f"${TypeRepr.of[A].show} is not a class")
 
 
+  def map[T : Type, R : Type](a: Expr[Array[T]], f: Expr[T => R], n: Expr[Int])(using Quotes): Expr[Array[R]] =
+    val size = n.valueOrAbort
+    '{
+      val na = ${ ofSizeImpl[R](Expr(size)) }
+      var i = 0
+      while i < ${ Expr(size) } do
+        ${ exprTransform[Unit](simplifyTrivialValDef)('{ na(i) = ${ betaReduceFixE('{ $f($a(i)) }) } }) }
+        i += 1
+      na
+    }
+
   def mapUnrolled[T : Type, R : Type](a: Expr[Array[T]], f: Expr[T => R], n: Expr[Int])(using Quotes): Expr[Array[R]] =
     val size = n.valueOrAbort
     '{
-    val na = ${ ofSizeImpl[R](n) }
-    ${
-      ArrayIndexImpl.foreachInRange(0, size)(i =>
-        exprTransform[Unit](simplifyTrivialValDef)('{ na(${ Expr(i) }) = ${ betaReduceFixE('{ $f($a(${ Expr(i) })) }) } })
-      )
+      val na = ${ ofSizeImpl[R](n) }
+      ${
+        ArrayIndexImpl.foreachInRange(0, size)(i =>
+          exprTransform[Unit](simplifyTrivialValDef)('{ na(${ Expr(i) }) = ${ betaReduceFixE('{ $f($a(${ Expr(i) })) }) } })
+        )
+      }
+      na
     }
-    na
+
+  def mapUnrolledN[T: Type, R: Type](a: Expr[Array[T]], f: Expr[T => R], n: Expr[Int], k: Expr[Int])(using Quotes): Expr[Array[R]] =
+    val size = n.valueOrAbort
+    val chunk = k.valueOrAbort
+    val remaining: Int = size % chunk
+    '{
+      val na = ${ ofSizeImpl[R](Expr(size)) }
+      ${
+        ArrayIndexImpl.foreachInRange(0, remaining)(i =>
+          exprTransform[Unit](simplifyTrivialValDef)('{ na(${ Expr(i) }) = ${ betaReduceFixE('{ $f($a(${ Expr(i) })) }) } })
+        )
+      }
+      var i: Int = ${ Expr(remaining) }
+      while i < ${ Expr(size) } do
+        ${ ArrayIndexImpl.foreachInRange(0, chunk)(_ => exprTransform[Unit](simplifyTrivialValDef)('{ na(i) = ${ betaReduceFixE( '{ $f($a(i)) }) }; i += 1 })) }
+      na
     }
 
   def flatMapFullyUnrolled[T : Type, R : Type](a: Expr[Array[T]], f: Expr[T => Array[R]], n: Expr[Int], m: Expr[Int])(using Quotes): Expr[Array[R]] =
@@ -257,6 +285,17 @@ object ArrayIndexImpl:
       while i < size do
         ${ betaReduceFixE('{ $f($a(i)) }) }
         i += 1
+    }
+
+  def map[T : Type, R : Type](a: Expr[Array[T]], f: Expr[T => R])(using Quotes): Expr[Array[R]] =
+    '{
+      val size = $a.length
+      val na = ${ SizedArrayIndexImpl.ofSizeImpl[R]('{ size }) }
+      var i = 0
+      while i < size do
+        ${ exprTransform[Unit](simplifyTrivialValDef)('{ na(i) = ${ betaReduceFixE('{ $f($a(i)) }) } }) }
+        i += 1
+      na
     }
 
   def forEachUnrolledN[T : Type](a: Expr[Array[T]], f: Expr[T => Unit], ne: Expr[Int])(using Quotes): Expr[Unit] =
