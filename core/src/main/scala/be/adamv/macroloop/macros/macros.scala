@@ -385,6 +385,14 @@ object ConstantListImpl:
     Expr.ofTupleFromSeq(unlist(l))
 
 object ConstantTupleImpl:
+  def prepend[Tup <: Tuple : Type, X: Type](te: Expr[Tup], xe: Expr[X])(using Quotes): Expr[X *: Tup] =
+    val tseq = untuple[Any](te)
+    Expr.ofTupleFromSeq(xe +: tseq).asInstanceOf[Expr[X *: Tup]]
+
+  def append[Tup <: Tuple : Type, X: Type](te: Expr[Tup], xe: Expr[X])(using Quotes): Expr[Tuple.Append[Tup, X]] =
+    val tseq = untuple[Any](te)
+    Expr.ofTupleFromSeq(tseq.appended(xe)).asInstanceOf[Expr[Tuple.Append[Tup, X]]]
+
   def insert[Tup <: Tuple : Type, X : Type](te: Expr[Tup], pose: Expr[Int], xe: Expr[X])(using Quotes): Expr[Tuple] =
     val pos = pose.valueOrAbort
     val tbuf = untuple[Any](te).toBuffer
