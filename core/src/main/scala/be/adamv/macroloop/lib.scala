@@ -5,7 +5,7 @@ import be.adamv.macroloop.macros.*
 
 inline def show(inline a: Any): String = ${ showImpl('a) }
 inline def showTree(inline a: Any): String = ${ showTreeImpl('a) }
-transparent inline def stripCast(inline t: Any): Any = ${ stripCastImpl('t) }
+transparent inline def stripCast[T](inline t: T): T = ${ stripCastImpl('t) }
 // transparent prevents tagging the returned code with an extra typing judgement
 transparent inline def translateCode(inline x: Any, inline y: Any): Any = ${ translateCodeImpl('x, 'y) }
 inline def staticClass[A]: Class[A] = ${ staticClassImpl[A] }

@@ -29,13 +29,13 @@ def showTreeImpl(e: Expr[Any])(using Quotes): Expr[String] =
   import quotes.reflect.*
   Expr(e.asTerm.show(using Printer.TreeStructure))
 
-def stripCastImpl(e: Expr[Any])(using Quotes): Expr[Any] =
+def stripCastImpl[T](e: Expr[T])(using Quotes): Expr[T] =
   import quotes.reflect.*
   def rec(tree: Term): Term = tree match
     case Inlined(_, Nil, e) => rec(e)
     case TypeApply(Select(x, "asInstanceOf"), _) => x
     case x => x
-  rec(e.asTerm).asExpr
+  rec(e.asTerm).asExpr.asInstanceOf[Expr[T]]
 
 def translateCodeImpl(x: Expr[Any], y: Expr[Any])(using Quotes): Expr[Any] =
   import quotes.reflect.*
