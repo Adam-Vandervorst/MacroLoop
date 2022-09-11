@@ -33,7 +33,7 @@ def stripCastImpl[T](e: Expr[T])(using Quotes): Expr[T] =
   import quotes.reflect.*
   def rec(tree: Term): Term = tree match
     case Inlined(_, Nil, e) => rec(e)
-    case TypeApply(Select(x, "asInstanceOf"), _) => x
+    case TypeApply(Select(x, "asInstanceOf" | "$asInstanceOf$"), _) => x
     case x => x
   rec(e.asTerm).asExpr.asInstanceOf[Expr[T]]
 
