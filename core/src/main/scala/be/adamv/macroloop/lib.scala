@@ -4,6 +4,8 @@ import be.adamv.macroloop.macros.*
 
 
 inline def show(inline a: Any): String = ${ showImpl('a) }
+inline def showTree(inline a: Any): String = ${ showTreeImpl('a) }
+transparent inline def stripCast(inline t: Any): Any = ${ stripCastImpl('t) }
 // transparent prevents tagging the returned code with an extra typing judgement
 transparent inline def translateCode(inline x: Any, inline y: Any): Any = ${ translateCodeImpl('x, 'y) }
 inline def staticClass[A]: Class[A] = ${ staticClassImpl[A] }
@@ -34,7 +36,7 @@ object SizedArrayIndex:
   inline def ofSize[S <: Int, A] = ${ SizedArrayIndexImpl.ofSizeTypeImpl[S, A] }
   inline def ofSize[A](inline s: Int) = ${ SizedArrayIndexImpl.ofSizeImpl[A]('s) }
 
-  inline def mapForSize[T, R](inline a: Array[T], inline n: Int)(inline f: T => R): Array[R] = 
+  inline def mapForSize[T, R](inline a: Array[T], inline n: Int)(inline f: T => R): Array[R] =
     inline if n <= 16 then
       mapUnrolled(a, n)(f)
     else if n > 1000000 then

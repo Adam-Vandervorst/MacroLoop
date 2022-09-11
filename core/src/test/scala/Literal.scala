@@ -112,7 +112,7 @@ class LiteralSizedArrayIndex extends LiteralFunSuite:
       na
     }: Array[Int])
   }
-  
+
   test("mapUnrolled") {
     val a = Array(1, 2, 3)
 
@@ -251,18 +251,23 @@ class LiteralConstantTuple extends LiteralFunSuite:
     assertCodeMatches(ConstantTuple.forEachUnrolled(('a', 1, None))(println), {
       println('a')
       println(1)
-      val v = None
-      println(v)
+      println(None)
     }: Unit)
   }
 
+  test("forEachUnrolled asInstanceOf") {
+    assertCodeMatches(ConstantTuple.forEachUnrolled(stripCast(('a', 1, None).asInstanceOf[Tuple]))(println), {
+      println('a')
+      println(1)
+      println(None)
+    }: Unit)
+  }
 
 class LiteralArgsTuple extends LiteralFunSuite:
   test("forEachUnrolled") {
     assertCodeMatches(ConstantArgs.forEachUnrolled('a', 1, None)(println), {
       println('a')
       println(1)
-      val v = None
-      println(v)
+      println(None)
     }: Unit)
   }
