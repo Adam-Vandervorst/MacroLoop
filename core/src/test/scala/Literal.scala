@@ -257,11 +257,27 @@ class LiteralConstantTuple extends LiteralFunSuite:
     }: Unit)
   }
 
-  test("forEachUnrolled Tuple22") {
-    assertCodeMatches(ConstantTuple.forEachUnrolled(('a', 1, None))(println), {
-      println('a')
+  test("compute forEachUnrolled Tuple22 linear") {
+    val it = Iterator.iterate(0)(_ + 1)
+    def compute = it.next()
+
+    assertCodeMatches(ConstantTuple.forEachUnrolled((compute, 1, None))(println), {
+      println(compute)
       println(1)
       println(None)
+    }: Unit)
+  }
+
+  test("compute forEachUnrolled Tuple22") {
+    val it = Iterator.iterate(0)(_ + 1)
+    def compute = it.next()
+
+    // needs any annotations because it isn't handled as a parametrized or poly function?
+    assertCodeMatches(ConstantTuple.forEachUnrolled((compute, 1, None))(x => println((x, x))), {
+      val c: Int = compute
+      println(Tuple2[Any, Any](c, c))
+      println(Tuple2[Any, Any](1, 1))
+      println(Tuple2[Any, Any](None, None))
     }: Unit)
   }
 

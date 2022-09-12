@@ -57,7 +57,8 @@ def simplifyTrivialValDef(using q: Quotes)(x: q.reflect.Term): q.reflect.Term =
   // TODO support multiple values
   val rewr = new TreeMap:
     override def transformTerm(tree: Term)(owner: Symbol): Term = tree match
-      case Block((vd @ ValDef(_, _, Some(t)))::Nil, e) =>
+      case Block((vd @ ValDef(n, _, Some(t)))::Nil, e)
+          if !simplifyTrivialInline(t).symbol.flags.is(Flags.Method) || gatherRefs(e).count(_ == vd.symbol) <= 1 =>
         replaceAllRefs(Map(vd.symbol -> t))(e)
       case _ => super.transformTerm(tree)(owner)
   rewr.transformTerm(x)(Symbol.spliceOwner)
@@ -88,6 +89,15 @@ def gatherValDefSymbols(using q: Quotes)(x: q.reflect.Term): List[q.reflect.Symb
       case _ => foldOverTree(syms, tree)(owner)
   acc.foldTree(ListBuffer.empty, x)(Symbol.spliceOwner).result()
 
+def gatherRefs(using q: Quotes)(x: q.reflect.Term): List[q.reflect.Symbol] =
+  import collection.mutable.ListBuffer
+  import quotes.reflect.*
+  val acc = new q.reflect.TreeAccumulator[ListBuffer[Symbol]]:
+    def foldTree(syms: ListBuffer[Symbol], tree: Tree)(owner: Symbol): ListBuffer[Symbol] = tree match
+      case ref: Ref => ref.symbol +: syms
+      case _ => foldOverTree(syms, tree)(owner)
+  acc.foldTree(ListBuffer.empty, x)(Symbol.spliceOwner).result()
+
 def translateRefs(using q: Quotes)(mapping: Map[q.reflect.Symbol, q.reflect.Symbol])(x: q.reflect.Term): q.reflect.Term =
   // TODO this can fail and should return an option
   import quotes.reflect.*
@@ -104,6 +114,8 @@ def renameBoundFrom(using q: Quotes)(toRename: q.reflect.Term, niceNames: q.refl
   val sourceNames = gatherValDefSymbols(toRename)
   val targetNames = gatherValDefSymbols(niceNames)
   // TODO this can fail and should flatMap into an option
+  assert(sourceNames.length == targetNames.length, "different number of ValDefs")
+  assert(sourceNames.occurrences == targetNames.occurrences, "ValDef occurrences different")
   val mapping = (sourceNames zip targetNames).toMap
   translateRefs(mapping)(toRename)
 
@@ -271,7 +283,7 @@ object SizedArrayIndexImpl:
       val na = ${ ofSizeImpl[R](n) }
       ${
         ArrayIndexImpl.foreachInRange(0, size)(i =>
-          exprTransform[Unit](simplifyTrivialValDef)('{ na(${ Expr(i) }) = ${ betaReduceFixE('{ $f($a(${ Expr(i) })) }) } })
+          '{ na(${ Expr(i) }) = ${ exprTransform[R](simplifyTrivialValDef)(betaReduceFixE('{ $f($a(${ Expr(i) })) })) } }
         )
       }
       na
