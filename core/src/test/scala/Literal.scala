@@ -289,6 +289,10 @@ class LiteralConstantTuple extends LiteralFunSuite:
     }: Unit)
   }
 
+  test("tabulateUnrolled") {
+    assertCodeMatches(ConstantTuple.tabulateUnrolled(4)(_*2), Tuple4.apply[0, 2, 4, 6](0, 2, 4, 6): Tuple)
+  }
+
 class LiteralArgsTuple extends LiteralFunSuite:
   test("forEachUnrolled") {
     assertCodeMatches(ConstantArgs.forEachUnrolled('a', 1, None)(println), {

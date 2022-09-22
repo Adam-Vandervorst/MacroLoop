@@ -437,6 +437,12 @@ object ConstantTupleImpl:
     val rseq = bseq.map(arg => exprTransform[R](simplifyTrivialValDef)(betaReduceFixE('{ $f($arg) })))
     Expr.ofTupleFromSeq(rseq).asInstanceOf[Expr[Tuple.Map[Tup, [_] =>> R]]]
 
+  def tabulateUnrolled[N <: Int : Type, R : Type](ne: Expr[N], f: Expr[Int => R])(using Quotes): Expr[Tuple] =
+    val length = ne.valueOrAbort
+    val rseq = Seq.range(0, length).map(i => exprTransform[R](simplifyTrivialValDef)(betaReduceFixE('{ $f(${ Expr(i) }) })))
+    Expr.ofTupleFromSeq(rseq)
+
+
 object ConstantArgsImpl:
   def forEachUnrolled(t: Expr[Seq[Any]], f: Expr[Any => Unit])(using Quotes): Expr[Unit] =
     import quotes.reflect.*

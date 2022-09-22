@@ -106,6 +106,9 @@ object ConstantTuple:
   inline def mapBoundedUnrolled[Tup <: Tuple, B, R](inline t: Tup)(inline f: B => R): Tuple.Map[Tup, [_] =>> R] =
     ${ ConstantTupleImpl.mapBoundedUnrolled('t, 'f) }
 
+  inline def tabulateUnrolled[N <: Int, R](inline n: N)(inline f: Int => R): Tuple =
+    ${ConstantTupleImpl.tabulateUnrolled('n, 'f)}
+
 object ConstantArgs:
   inline def forEachUnrolled(inline args: Any*)(inline f: Any => Unit): Unit =
     ${ ConstantArgsImpl.forEachUnrolled('args, 'f) }
