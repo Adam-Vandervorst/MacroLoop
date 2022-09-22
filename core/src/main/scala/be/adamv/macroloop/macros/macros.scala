@@ -434,7 +434,7 @@ object ConstantTupleImpl:
 
   def mapBoundedUnrolled[Tup <: Tuple : Type, B : Type, R : Type](t: Expr[Tup], f: Expr[B => R])(using Quotes): Expr[Tuple.Map[Tup, [_] =>> R]] =
     val bseq = untuple[B](t)
-    val rseq = bseq.map(arg => exprTransform[Unit](simplifyTrivialValDef)(betaReduceFixE('{ $f($arg) })))
+    val rseq = bseq.map(arg => exprTransform[R](simplifyTrivialValDef)(betaReduceFixE('{ $f($arg) })))
     Expr.ofTupleFromSeq(rseq).asInstanceOf[Expr[Tuple.Map[Tup, [_] =>> R]]]
 
 object ConstantArgsImpl:
