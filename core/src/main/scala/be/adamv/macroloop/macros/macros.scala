@@ -131,16 +131,20 @@ def untuple[B : Type](e: Expr[Tuple])(using Quotes): Seq[Expr[B]] =
     case Inlined(_, Nil, e) => rec(e)
     // UNSAFE, assume tuple
     case Apply(_, args) => args.map(_.asExprOf[B])
-    case _ => report.errorAndAbort(s"couldn't untuple tree ${tree.show}")
+    case _ => report.errorAndAbort(s"couldn't untuple tree ${tree.show(using Printer.TreeStructure)}")
   rec(stripCast(e.asTerm))
 
 def tupleToExpr[Tup <: Tuple : Type](t: Tuple.Map[Tup, Expr])(using Quotes): Expr[Tup] =
   import quotes.reflect.*
   val terms = t.productIterator.map(_.asInstanceOf[Expr[Any]].asTerm).toList
+  tupleToTerm(terms).asExprOf[Tup]
+
+def tupleToTerm(using q: Quotes)(terms: List[q.reflect.Term]): q.reflect.Term =
+  import quotes.reflect.*
   val types = terms.map(_.tpe.widen)
   val tupleObject = Seq('{Tuple1}, '{Tuple2}, '{Tuple3}, '{Tuple4}, '{Tuple5}, '{Tuple6}, '{Tuple7}, '{Tuple8}, '{Tuple9}, '{Tuple10})(terms.length - 1)
   val tupleApply = Select.unique(tupleObject.asTerm, "apply")
-  Apply(TypeApply(tupleApply, types.map(Inferred(_))), terms).asExprOf[Tup]
+  Apply(TypeApply(tupleApply, types.map(Inferred(_))), terms)
 
 def lambdaDestruct(using q: Quotes)(f: q.reflect.Term): Option[(q.reflect.Symbol, q.reflect.Term)] =
   import quotes.reflect.*
@@ -415,6 +419,35 @@ object ConstantTupleImpl:
     val t1seq = untuple[Any](t1e)
     val t2seq = untuple[Any](t2e)
     Expr.ofTupleFromSeq(t1seq ++ t2seq).asInstanceOf[Expr[Tuple.Concat[T1, T2]]]
+
+  def lazyVal[T: Type, U: Type](rhs: Expr[T])(body: Expr[T] => Expr[U])(using Quotes): Expr[U] =
+    '{ lazy val x: T = $rhs; ${body('x)} }
+
+  type AndInt[T] = T & Int
+  def evaluateElements[Tup <: Tuple : Type, R : Type](t: Expr[Tup], f: Expr[Tup => R])(using q: Quotes): Expr[R] =
+    import quotes.reflect.*
+    val tseq = untuple[Any](t)
+    val vseq = tseq.zipWithIndex.map((t, i) =>
+      Expr(i).asTerm.tpe.asType match
+        case '[ i ] =>
+          '{ val x: Tuple.Elem[Tup, AndInt[i]] = ${ t.asInstanceOf } })
+    val kseq = tseq.zipWithIndex.map((t, i) =>
+      TypeTree.of(using TypeRepr.of[Tup].typeArgs(i).asType))
+    val sseq = vseq.zip(kseq).map((vd, tt) => (q.reflect.Typed(Ident(vd.asTerm.symbol.termRef), tt).asExpr))
+
+    println(f.asTerm.show)
+    lazyVal[Tup, R](Expr.ofTupleFromSeq(sseq).asInstanceOf[Expr[Tup]])(vdt => '{ $f(${ vdt }) })
+//    ValDef.let(Symbol.spliceOwner, tseq)(seq =>
+////      val tupt =
+////      applyTupleDestruct(Tuple.fromArray(seq.map(_.asExpr).toArray).asInstanceOf, f).asTerm
+//      lambdaDestruct(f.asTerm) match
+//        case Some((sym, term)) =>
+//          val tupt = simplifyTrivialValDef()
+//          replaceAllRefs(Map(sym -> tupt))(term)
+//        case None =>
+////          Apply(f.asTerm, List(tupt))
+//          ???
+//    ).asExprOf[R]
 
   def forEachUnrolled[Tup <: Tuple : Type](t: Expr[Tup], f: Expr[Any => Unit])(using Quotes): Expr[Unit] =
     val bseq = untuple[Any](t)

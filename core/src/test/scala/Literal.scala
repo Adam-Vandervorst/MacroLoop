@@ -281,6 +281,26 @@ class LiteralConstantTuple extends LiteralFunSuite:
     }: Unit)
   }
 
+  test("evaluateElements forEachUnrolled") {
+    val it = Iterator.iterate(0)(_ + 1)
+    def compute = it.next()
+
+
+    println(show({
+      ConstantTuple.forEachUnrolled(('a', 'b'))(c =>
+        ConstantTuple.forEachUnrolled((compute, 1, None))(x => println((c, x))))
+    }))
+    println(show(ConstantTuple.evaluateElements((compute, 1, None))(etup =>
+      etup
+    )))
+    println(show(ConstantTuple.evaluateElements((compute, 1, None))(etup =>
+      ConstantTuple.forEachUnrolled(('a', 'b'))(c =>
+        {
+          ConstantTuple.forEachUnrolled(etup)(x => println((c, x)))
+        }
+    ))))
+  }
+
   test("forEachBoundedUnrolled asInstanceOf") {
     assertCodeMatches(ConstantTuple.forEachBoundedUnrolled((1, 2, 3).asInstanceOf)((x: Int) => println(java.lang.Integer.toBinaryString(x))), {
       println(java.lang.Integer.toBinaryString(1))

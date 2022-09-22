@@ -94,6 +94,9 @@ object ConstantTuple:
   transparent inline infix def concat[T1 <: Tuple, T2 <: Tuple](inline t1: T1, inline t2: T2): Tuple.Concat[T1, T2] =
     ${ ConstantTupleImpl.concat('t1, 't2) }
 
+  transparent inline infix def evaluateElements[Tup <: Tuple, R](inline t: Tup)(inline f: Tup => R): R =
+    ${ConstantTupleImpl.evaluateElements('t, 'f)}
+
   inline def forEachUnrolled[Tup <: Tuple](inline t: Tup)(inline f: Any => Unit): Unit =
     ${ ConstantTupleImpl.forEachUnrolled('t, 'f) }
 
