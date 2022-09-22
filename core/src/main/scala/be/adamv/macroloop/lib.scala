@@ -109,6 +109,10 @@ object ConstantTuple:
   inline def tabulateUnrolled[N <: Int, R](inline n: N)(inline f: Int => R): Tuple =
     ${ConstantTupleImpl.tabulateUnrolled('n, 'f)}
 
+  inline def fillUnrolled[N <: Int, R](inline n: N)(inline f: => R): Tuple =
+    ${ConstantTupleImpl.fillUnrolled('n, 'f)}
+
+
 object ConstantArgs:
   inline def forEachUnrolled(inline args: Any*)(inline f: Any => Unit): Unit =
     ${ ConstantArgsImpl.forEachUnrolled('args, 'f) }

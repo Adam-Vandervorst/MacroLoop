@@ -290,7 +290,15 @@ class LiteralConstantTuple extends LiteralFunSuite:
   }
 
   test("tabulateUnrolled") {
-    assertCodeMatches(ConstantTuple.tabulateUnrolled(4)(_*2), Tuple4.apply[0, 2, 4, 6](0, 2, 4, 6): Tuple)
+    assertCodeMatches(ConstantTuple.tabulateUnrolled(4)(_*2),
+      Tuple4.apply[0, 2, 4, 6](0, 2, 4, 6): Tuple)
+  }
+
+  test("fillUnrolled") {
+    val it = Iterator.iterate(0)(_ + 1)
+
+    assertCodeMatches(ConstantTuple.fillUnrolled(4)(it.next()),
+      Tuple4.apply[Int, Int, Int, Int](it.next(), it.next(), it.next(), it.next()): Tuple)
   }
 
 class LiteralArgsTuple extends LiteralFunSuite:
