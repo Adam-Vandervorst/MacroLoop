@@ -8,7 +8,7 @@ val publishSettings = Seq(
 )
 
 lazy val root = project.in(file("."))
-  .aggregate(core, staging, collection)
+  .aggregate(core, staging, collection, deriving)
   .settings(
     name := "macroloop",
     compileOrder := CompileOrder.JavaThenScala,
@@ -40,3 +40,10 @@ lazy val collection = project.in(file("collection"))
   .settings(
     name := "macroloop-collection",
 )
+
+lazy val deriving = project.in(file("deriving"))
+  .dependsOn(core % "compile->compile;test->test;provided->provided")
+  .settings(publishSettings)
+  .settings(
+    name := "macroloop-deriving",
+  )
