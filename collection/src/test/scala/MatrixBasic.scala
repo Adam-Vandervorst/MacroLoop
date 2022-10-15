@@ -118,3 +118,14 @@ class MatrixBasic extends FunSuite:
   test("columnsIt transpose toSeqSeq") {
     assert(g23.transpose.columnsIt.map(_.toSeq).toSeq == g23.toSeqSeq)
   }
+
+  test("existsItem forallItem") {
+    assert(g23.forallItem((i, j, v) => (if j == 0 then 1 else Seq(3, 2)(i)*j) == v))
+    assert(m1.existsItem((i, j, v) => i == 0 && v < 0))
+    assert(g44.forallItem((i, j, v) => g44(i, j) == v))
+    assert(!g44.existsItem((i, j, v) => g44(i, j) != v))
+  }
+
+  test("indices containsPosition") {
+    assert(g23.indices.forall(g23.containsPosition(_, _)))
+  }
