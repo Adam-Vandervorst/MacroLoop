@@ -52,7 +52,7 @@ abstract class SizedVector[N <: Int, A]:
   inline def forEach(inline f: A => Unit): Unit = ArrayIndex.forEach(data)(f)
   /** Same size vector with its elements transformed by f. */
   inline def map[B](inline f: A => B): SizedVector[N, B] =
-    SizedVector.wrap(SizedArrayIndex.mapUnrolled(data, constValue[N])(f))
+    SizedVector.wrap(SizedArrayIndex.mapForSize(data, constValue[N])(f))
   /** Each element gets expanded into a sub-vector by f. */
   inline def flatMap[M <: Int, B](inline f: A => SizedVector[M, B]): SizedVector[M*N, B] =
     SizedVector.wrap(SizedArrayIndex.flatMapFullyUnrolled(data, constValue[N])(f(_).data, constValue[M]))

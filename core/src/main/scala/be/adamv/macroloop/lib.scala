@@ -4,6 +4,8 @@ import be.adamv.macroloop.macros.*
 
 
 inline def show(inline a: Any): String = ${ showImpl('a) }
+inline def showTree(inline a: Any): String = ${ showTreeImpl('a) }
+transparent inline def stripCast[T](inline t: T): T = ${ stripCastImpl('t) }
 // transparent prevents tagging the returned code with an extra typing judgement
 transparent inline def translateCode(inline x: Any, inline y: Any): Any = ${ translateCodeImpl('x, 'y) }
 inline def staticClass[A]: Class[A] = ${ staticClassImpl[A] }
@@ -46,8 +48,22 @@ object SizedArrayIndex:
   inline def ofSize[S <: Int, A] = ${ SizedArrayIndexImpl.ofSizeTypeImpl[S, A] }
   inline def ofSize[A](inline s: Int) = ${ SizedArrayIndexImpl.ofSizeImpl[A]('s) }
 
+  inline def mapForSize[T, R](inline a: Array[T], inline n: Int)(inline f: T => R): Array[R] =
+    inline if n <= 16 then
+      mapUnrolled(a, n)(f)
+    else if n > 1000000 then
+      mapUnrolledN(32)(a, n)(f)
+    else
+      map(a, n)(f)
+
+  inline def map[T, R](inline a: Array[T], inline n: Int)(inline f: T => R): Array[R] =
+    ${ SizedArrayIndexImpl.map('a, 'f, 'n) }
+
   inline def mapUnrolled[T, R](inline a: Array[T], inline n: Int)(inline f: T => R): Array[R] =
     ${ SizedArrayIndexImpl.mapUnrolled('a, 'f, 'n) }
+
+  inline def mapUnrolledN[T, R, N <: Int & Singleton](inline k: N)(inline a: Array[T], inline n: Int)(inline f: T => R): Array[R] =
+    ${ SizedArrayIndexImpl.mapUnrolledN('a, 'f, 'n, 'k) }
 
   inline def flatMapFullyUnrolled[T, R](inline a: Array[T], inline n: Int)(inline f: T => Array[R], inline m: Int): Array[R] =
     ${ SizedArrayIndexImpl.flatMapFullyUnrolled('a, 'f, 'n, 'm) }
@@ -55,6 +71,9 @@ object SizedArrayIndex:
 object ArrayIndex:
   inline def forEach[T](inline a: Array[T])(inline f: T => Unit): Unit =
     ${ ArrayIndexImpl.forEach('a, 'f) }
+
+  inline def map[T, R](inline a: Array[T])(inline f: T => R): Array[R] =
+    ${ ArrayIndexImpl.map('a, 'f) }
 
   inline def forEachUnrolledN[T, N <: Int & Singleton](inline n: N)(inline a: Array[T])(inline f: T => Unit): Unit =
     ${ ArrayIndexImpl.forEachUnrolledN('a, 'f, 'n) }
@@ -75,8 +94,23 @@ object ConstantTuple:
     case _: EmptyTuple => Nil
     case _: (head *: tail) => constValue[head] :: constToList[tail]
 
+  transparent inline infix def prepend[Tup <: Tuple, I <: Int, X](inline t: Tup)(inline x: X): X *: Tup =
+    ${ ConstantTupleImpl.prepend('t, 'x) }
+
+  transparent inline infix def append[Tup <: Tuple, I <: Int, X](inline t: Tup)(inline x: X): Tuple.Append[Tup, X] =
+    ${ ConstantTupleImpl.append('t, 'x) }
+
+  transparent inline infix def insert[Tup <: Tuple, I <: Int, X](inline t: Tup)(inline pos: I, inline x: X): Tuple =
+    ${ ConstantTupleImpl.insert('t, 'pos, 'x) }
+
+  transparent inline infix def concat[T1 <: Tuple, T2 <: Tuple](inline t1: T1, inline t2: T2): Tuple.Concat[T1, T2] =
+    ${ ConstantTupleImpl.concat('t1, 't2) }
+
   inline def forEachUnrolled[Tup <: Tuple](inline t: Tup)(inline f: Any => Unit): Unit =
     ${ ConstantTupleImpl.forEachUnrolled('t, 'f) }
+
+  inline def forEachBoundedUnrolled[Tup <: Tuple, B](inline t: Tup)(inline f: B => Unit): Unit =
+    ${ ConstantTupleImpl.forEachBoundedUnrolled('t, 'f) }
 
   inline def mapUnrolled[Tup <: Tuple, F[_]](inline t: Tup)(inline f: [X] => X => F[X]): Tuple.Map[Tup, F] =
     ${ ConstantTupleImpl.mapUnrolled[Tup, F]('t, 'f) }
@@ -84,8 +118,11 @@ object ConstantTuple:
   inline def mapBoundedUnrolled[Tup <: Tuple, B, R](inline t: Tup)(inline f: B => R): Tuple.Map[Tup, [_] =>> R] =
     ${ ConstantTupleImpl.mapBoundedUnrolled('t, 'f) }
 
-//  inline def mapPFCompiletime[Tup <: NonEmptyTuple, R](inline t: Tup)(inline f: PartialFunction[Any, R]): Tuple.Map[Tup, [_] =>> R] =
-//    ${ staging.ConstantTuple.mapPF('t, 'f) }
+  inline def tabulateUnrolled[N <: Int, R](inline n: N)(inline f: Int => R): Tuple =
+    ${ConstantTupleImpl.tabulateUnrolled('n, 'f)}
+
+  inline def fillUnrolled[N <: Int, R](inline n: N)(inline f: => R): Tuple =
+    ${ConstantTupleImpl.fillUnrolled('n, 'f)}
 
 
 object ConstantArgs:

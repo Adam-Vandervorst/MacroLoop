@@ -99,9 +99,7 @@ abstract class Matrix[M <: Int, N <: Int, A]:
   inline def forEach(inline f: A => Unit): Unit = ArrayIndex.forEach(data)(f)
   /** Same size matrix with its elements transformed by f. */
   inline def map[B](inline f: A => B): Matrix[M, N, B] =
-    val ndata = SizedArrayIndex.ofSize[M*N, B]
-    IntRange.forEach(0, constValue[M*N], 1)(i => ndata(i) = f(data(i)))
-    Matrix.wrap(ndata)
+    Matrix.wrap(SizedArrayIndex.mapForSize(data, constValue[M*N])(f))
   /** Each element gets expanded into a sub-matrix by f. */
   inline def flatMap[O <: Int, P <: Int, B](inline f: A => Matrix[O, P, B]): Matrix[M*O, N*P, B] = map(f).flatten
 
@@ -254,11 +252,11 @@ object Matrix:
     Matrix.wrap(data)
 
   extension [M <: Int, N <: Int, A](m: Matrix[M, N, A])
-    inline def foldRows[B](z: B)(op: (B, A) => B): SizedVector[M, B] =
+    inline def foldColumns[B](z: B)(op: (B, A) => B): SizedVector[M, B] =
       val ar = SizedArrayIndex.ofSize[M, B]
       m.rowsIt.map(_.foldLeft(z)(op)).copyToArray(ar)
       SizedVector.wrap(ar)
-    inline def foldColumns[B](z: B)(op: (B, A) => B): SizedVector[N, B] =
+    inline def foldRows[B](z: B)(op: (B, A) => B): SizedVector[N, B] =
       val ar = SizedArrayIndex.ofSize[N, B]
       m.columnsIt.map(_.foldLeft(z)(op)).copyToArray(ar)
       SizedVector.wrap(ar)

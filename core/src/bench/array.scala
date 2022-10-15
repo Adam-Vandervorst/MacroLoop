@@ -77,6 +77,40 @@ end ArraySum
 
 @BenchmarkMode(Array(Mode.AverageTime))
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
+@Warmup(iterations = 5, time = 500, timeUnit = TimeUnit.MILLISECONDS)
+@Measurement(iterations = 5, time = 500, timeUnit = TimeUnit.MILLISECONDS)
+@Fork(2, warmups = 2)
+@State(Scope.Benchmark)
+class ArrayMap:
+  inline val size = 10000000
+
+  protected val ar: Array[Int] = Array.range(0, size)
+
+  @Benchmark
+  def baseline_const =
+    ar
+
+  @Benchmark
+  def default_map =
+    ar.map(2*_)
+
+  @Benchmark
+  def while_index =
+    val na: Array[Int] = new Array[Int](size)
+    var i: Int = 0
+    while i < size do
+      na(i) = 2*ar(i)
+      i += 1
+    na
+
+  @Benchmark
+  def macro_for_size =
+    SizedArrayIndex.mapForSize(ar, size)(2*_)
+end ArrayMap
+
+
+@BenchmarkMode(Array(Mode.AverageTime))
+@OutputTimeUnit(TimeUnit.NANOSECONDS)
 @Warmup(iterations = 5, time = 250, timeUnit = TimeUnit.MILLISECONDS)
 @Measurement(iterations = 5, time = 250, timeUnit = TimeUnit.MILLISECONDS)
 @Fork(2, warmups = 2)

@@ -135,16 +135,46 @@ class LiteralIt extends LiteralFunSuite:
   }
 
 class LiteralSizedArrayIndex extends LiteralFunSuite:
+  test("map") {
+    val a = Array(1, 2, 3)
+
+    assertCodeMatches(SizedArrayIndex.map(a, 3)(2 * _), {
+      val na: Array[Int] = new Array[Int](3)
+      var i: Int = 0
+      while i < 3 do
+        na(i) = 2*a(i)
+        i += 1
+      na
+    }: Array[Int])
+  }
+
   test("mapUnrolled") {
     val a = Array(1, 2, 3)
 
     assertCodeMatches(SizedArrayIndex.mapUnrolled(a, 3)(_ + 1), {
       val na: Array[Int] = new Array[Int](3)
-      na.update(0, a.apply(0).+(1))
-      na.update(1, a.apply(1).+(1))
-      na.update(2, a.apply(2).+(1))
+      na(0) = a(0) + 1
+      na(1) = a(1) + 1
+      na(2) = a(2) + 1
+      na
+    }: Array[Int])
+  }
 
-      (na: Array[Int])
+  test("mapUnrolledN") {
+    val a = Array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+
+    assertCodeMatches(SizedArrayIndex.mapUnrolledN(3)(a, 10)(2*_), {
+      val na: Array[Int] = new Array[Int](10)
+      na(0) = 2*a(0)
+      var i: Int = 1
+      while i < 10 do
+        na(i) = 2*a(i)
+        i += 1
+        na(i) = 2*a(i)
+        i += 1
+        na(i) = 2*a(i)
+        i += 1
+      na
     }: Array[Int])
   }
 
@@ -178,6 +208,20 @@ class LiteralArrayIndex extends LiteralFunSuite:
         println(x)
         i += 1
     }: Unit)
+  }
+
+  test("map") {
+    val a = Array(1, 2, 3)
+
+    assertCodeMatches(ArrayIndex.map(a)(2*_), {
+      val size: Int = a.length
+      val na: Array[Int] = new Array[Int](size)
+      var i: Int = 0
+      while i < size do
+        na(i) = 2*a(i)
+        i += 1
+      na: Array[Int]
+    }: Array[Int])
   }
 
   test("forEachUnrolledN") {
@@ -230,6 +274,16 @@ class LiteralArrayIndex extends LiteralFunSuite:
   }
 
 class LiteralConstantTuple extends LiteralFunSuite:
+  test("insert prepend append") {
+    assertCodeMatches(ConstantTuple.insert(1, 2, 4)(2, 3), Tuple4[1, 2, 3, 4](1, 2, 3, 4))
+    assertCodeMatches(ConstantTuple.prepend(1, 2, 3)(0), Tuple4[0, 1, 2, 3](0, 1, 2, 3))
+    assertCodeMatches(ConstantTuple.append(1, 2, 3)(4), Tuple4[1, 2, 3, 4](1, 2, 3, 4))
+  }
+
+  test("concat") {
+    assertCodeMatches(ConstantTuple.concat((1, 2, 3), (4, 5)), Tuple5[1, 2, 3, 4, 5](1, 2, 3, 4, 5))
+  }
+
   test("forEachUnrolled TupleN") {
     assertCodeMatches(ConstantTuple.forEachUnrolled(ConstantList.toTuple22(ConstantTuple.constToList['a' *: 1 *: 2 *: EmptyTuple]))(println), {
       println('a')
@@ -238,22 +292,55 @@ class LiteralConstantTuple extends LiteralFunSuite:
     }: Unit)
   }
 
-  test("forEachUnrolled Tuple22") {
-    assertCodeMatches(ConstantTuple.forEachUnrolled(('a', 1, None))(println), {
-      println('a')
+  test("compute forEachUnrolled Tuple22 linear") {
+    val it = Iterator.iterate(0)(_ + 1)
+    def compute = it.next()
+
+    assertCodeMatches(ConstantTuple.forEachUnrolled((compute, 1, None))(println), {
+      println(compute)
       println(1)
-      val v = None
-      println(v)
+      println(None)
     }: Unit)
   }
 
+  test("compute forEachUnrolled Tuple22") {
+    val it = Iterator.iterate(0)(_ + 1)
+    def compute = it.next()
+
+    // needs any annotations because it isn't handled as a parametrized or poly function?
+    assertCodeMatches(ConstantTuple.forEachUnrolled((compute, 1, None))(x => println((x, x))), {
+      val c: Int = compute
+      println(Tuple2[Any, Any](c, c))
+      println(Tuple2[Any, Any](1, 1))
+      println(Tuple2[Any, Any](None, None))
+    }: Unit)
+  }
+
+  test("forEachBoundedUnrolled asInstanceOf") {
+    assertCodeMatches(ConstantTuple.forEachBoundedUnrolled((1, 2, 3).asInstanceOf)((x: Int) => println(java.lang.Integer.toBinaryString(x))), {
+      println(java.lang.Integer.toBinaryString(1))
+      println(java.lang.Integer.toBinaryString(2))
+      println(java.lang.Integer.toBinaryString(3))
+    }: Unit)
+  }
+
+  test("tabulateUnrolled") {
+    assertCodeMatches(ConstantTuple.tabulateUnrolled(4)(_*2),
+      Tuple4.apply[0, 2, 4, 6](0, 2, 4, 6): Tuple)
+  }
+
+  test("fillUnrolled") {
+    val it = Iterator.iterate(0)(_ + 1)
+
+    assertCodeMatches(ConstantTuple.fillUnrolled(4)(it.next()),
+      Tuple4.apply[Int, Int, Int, Int](it.next(), it.next(), it.next(), it.next()): Tuple)
+  }
 
 class LiteralArgsTuple extends LiteralFunSuite:
   test("forEachUnrolled") {
     assertCodeMatches(ConstantArgs.forEachUnrolled('a', 1, None)(println), {
       println('a')
       println(1)
-      val v = None
-      println(v)
+      println(None)
     }: Unit)
   }

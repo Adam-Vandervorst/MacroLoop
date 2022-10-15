@@ -25,9 +25,24 @@ def showImpl(e: Expr[Any])(using Quotes): Expr[String] =
   import quotes.reflect.*
   Expr(e.asTerm.show(using Printer.TreeShortCode))
 
+def showTreeImpl(e: Expr[Any])(using Quotes): Expr[String] =
+  import quotes.reflect.*
+  Expr(e.asTerm.show(using Printer.TreeStructure))
+
+def stripCastImpl[T : Type](e: Expr[T])(using Quotes): Expr[T] =
+  exprTransform[T](stripCast)(e)
+
 def translateCodeImpl(x: Expr[Any], y: Expr[Any])(using Quotes): Expr[Any] =
   import quotes.reflect.*
   renameBoundFrom(x.asTerm, y.asTerm).asExpr
+
+def stripCast(using q: Quotes): q.reflect.Term => q.reflect.Term =
+  import quotes.reflect.*
+  def rec(tree: Term): Term = tree match
+    case Inlined(_, Nil, e) => rec(e)
+    case TypeApply(Select(x, "asInstanceOf" | "$asInstanceOf$"), _) => rec(x)
+    case x => x
+  rec
 
 def replaceAllRefs(using q: Quotes)(mapping: Map[q.reflect.Symbol, q.reflect.Term])(x: q.reflect.Term): q.reflect.Term =
   import quotes.reflect.*
@@ -42,7 +57,8 @@ def simplifyTrivialValDef(using q: Quotes)(x: q.reflect.Term): q.reflect.Term =
   // TODO support multiple values
   val rewr = new TreeMap:
     override def transformTerm(tree: Term)(owner: Symbol): Term = tree match
-      case Block((vd @ ValDef(_, _, Some(t)))::Nil, e) =>
+      case Block((vd @ ValDef(n, _, Some(t)))::Nil, e)
+          if !simplifyTrivialInline(t).symbol.flags.is(Flags.Method) || gatherRefs(e).count(_ == vd.symbol) <= 1 =>
         replaceAllRefs(Map(vd.symbol -> t))(e)
       case _ => super.transformTerm(tree)(owner)
   rewr.transformTerm(x)(Symbol.spliceOwner)
@@ -73,6 +89,15 @@ def gatherValDefSymbols(using q: Quotes)(x: q.reflect.Term): List[q.reflect.Symb
       case _ => foldOverTree(syms, tree)(owner)
   acc.foldTree(ListBuffer.empty, x)(Symbol.spliceOwner).result()
 
+def gatherRefs(using q: Quotes)(x: q.reflect.Term): List[q.reflect.Symbol] =
+  import collection.mutable.ListBuffer
+  import quotes.reflect.*
+  val acc = new q.reflect.TreeAccumulator[ListBuffer[Symbol]]:
+    def foldTree(syms: ListBuffer[Symbol], tree: Tree)(owner: Symbol): ListBuffer[Symbol] = tree match
+      case ref: Ref => ref.symbol +: syms
+      case _ => foldOverTree(syms, tree)(owner)
+  acc.foldTree(ListBuffer.empty, x)(Symbol.spliceOwner).result()
+
 def translateRefs(using q: Quotes)(mapping: Map[q.reflect.Symbol, q.reflect.Symbol])(x: q.reflect.Term): q.reflect.Term =
   // TODO this can fail and should return an option
   import quotes.reflect.*
@@ -89,6 +114,8 @@ def renameBoundFrom(using q: Quotes)(toRename: q.reflect.Term, niceNames: q.refl
   val sourceNames = gatherValDefSymbols(toRename)
   val targetNames = gatherValDefSymbols(niceNames)
   // TODO this can fail and should flatMap into an option
+  assert(sourceNames.length == targetNames.length, "different number of ValDefs")
+  assert(sourceNames.occurrences == targetNames.occurrences, "ValDef occurrences different")
   val mapping = (sourceNames zip targetNames).toMap
   translateRefs(mapping)(toRename)
 
@@ -105,7 +132,7 @@ def untuple[B : Type](e: Expr[Tuple])(using Quotes): Seq[Expr[B]] =
     // UNSAFE, assume tuple
     case Apply(_, args) => args.map(_.asExprOf[B])
     case _ => report.errorAndAbort(s"couldn't untuple tree ${tree.show}")
-  rec(e.asTerm)
+  rec(stripCast(e.asTerm))
 
 def tupleToExpr[Tup <: Tuple : Type](t: Tuple.Map[Tup, Expr])(using Quotes): Expr[Tup] =
   import quotes.reflect.*
@@ -248,17 +275,68 @@ object SizedArrayIndexImpl:
           case _ =>
             report.errorAndAbort(f"${TypeRepr.of[A].show} is not a class")
 
+//  def forallExceptionCart[Tup <: Tuple : Type](tite: Expr[Tuple.Map[Tup, Iterable]], f: Expr[Tup => Boolean])(using Quotes): Expr[Boolean] =
+//    val seq = untuple[Iterable[Any]](tite)
+//    def unroll[I <: Int : Type](ites: Seq[Expr[Iterable[Any]]], args: Tuple): Expr[Unit] = ites match
+//      case Nil => '{ if !${ applyTupleDestruct[Tup, Boolean](args.asInstanceOf, f) } then throw Break }
+//      case ite::ites => forEachE(ite.asExprOf[Iterable[Tuple.Elem[Tup, I]]], et => unroll[S[I]](ites, args :* et))
+//    '{
+//      try
+//        ${ unroll[0](seq, EmptyTuple) }
+//        true
+//      catch
+//        case Break => false
+//    }
+//
+//  def zipMap[Tup <: Tuple : Type, R : Type](a: Expr[Array[T]], f: Expr[T => R], n: Expr[Int])(using Quotes): Expr[Array[R]] =
+//    val size = n.valueOrAbort
+//    '{
+//      val na = ${ ofSizeImpl[R](Expr(size)) }
+//      var i = 0
+//      while i < ${ Expr(size) } do
+//        ${ exprTransform[Unit](simplifyTrivialValDef)('{ na(i) = ${ betaReduceFixE('{ $f($a(i)) }) } }) }
+//        i += 1
+//      na
+//    }
+
+  def map[T : Type, R : Type](a: Expr[Array[T]], f: Expr[T => R], n: Expr[Int])(using Quotes): Expr[Array[R]] =
+    val size = n.valueOrAbort
+    '{
+      val na = ${ ofSizeImpl[R](Expr(size)) }
+      var i = 0
+      while i < ${ Expr(size) } do
+        ${ exprTransform[Unit](simplifyTrivialValDef)('{ na(i) = ${ betaReduceFixE('{ $f($a(i)) }) } }) }
+        i += 1
+      na
+    }
 
   def mapUnrolled[T : Type, R : Type](a: Expr[Array[T]], f: Expr[T => R], n: Expr[Int])(using Quotes): Expr[Array[R]] =
     val size = n.valueOrAbort
     '{
-    val na = ${ ofSizeImpl[R](n) }
-    ${
-      ArrayIndexImpl.foreachInRange(0, size)(i =>
-        exprTransform[Unit](simplifyTrivialValDef)('{ na(${ Expr(i) }) = ${ betaReduceFixE('{ $f($a(${ Expr(i) })) }) } })
-      )
+      val na = ${ ofSizeImpl[R](n) }
+      ${
+        ArrayIndexImpl.foreachInRange(0, size)(i =>
+          '{ na(${ Expr(i) }) = ${ exprTransform[R](simplifyTrivialValDef)(betaReduceFixE('{ $f($a(${ Expr(i) })) })) } }
+        )
+      }
+      na
     }
-    na
+
+  def mapUnrolledN[T: Type, R: Type](a: Expr[Array[T]], f: Expr[T => R], n: Expr[Int], k: Expr[Int])(using Quotes): Expr[Array[R]] =
+    val size = n.valueOrAbort
+    val chunk = k.valueOrAbort
+    val remaining: Int = size % chunk
+    '{
+      val na = ${ ofSizeImpl[R](Expr(size)) }
+      ${
+        ArrayIndexImpl.foreachInRange(0, remaining)(i =>
+          exprTransform[Unit](simplifyTrivialValDef)('{ na(${ Expr(i) }) = ${ betaReduceFixE('{ $f($a(${ Expr(i) })) }) } })
+        )
+      }
+      var i: Int = ${ Expr(remaining) }
+      while i < ${ Expr(size) } do
+        ${ ArrayIndexImpl.foreachInRange(0, chunk)(_ => exprTransform[Unit](simplifyTrivialValDef)('{ na(i) = ${ betaReduceFixE( '{ $f($a(i)) }) }; i += 1 })) }
+      na
     }
 
   def flatMapFullyUnrolled[T : Type, R : Type](a: Expr[Array[T]], f: Expr[T => Array[R]], n: Expr[Int], m: Expr[Int])(using Quotes): Expr[Array[R]] =
@@ -290,6 +368,17 @@ object ArrayIndexImpl:
       while i < size do
         ${ betaReduceFixE('{ $f($a(i)) }) }
         i += 1
+    }
+
+  def map[T : Type, R : Type](a: Expr[Array[T]], f: Expr[T => R])(using Quotes): Expr[Array[R]] =
+    '{
+      val size = $a.length
+      val na = ${ SizedArrayIndexImpl.ofSizeImpl[R]('{ size }) }
+      var i = 0
+      while i < size do
+        ${ exprTransform[Unit](simplifyTrivialValDef)('{ na(i) = ${ betaReduceFixE('{ $f($a(i)) }) } }) }
+        i += 1
+      na
     }
 
   def forEachUnrolledN[T : Type](a: Expr[Array[T]], f: Expr[T => Unit], ne: Expr[Int])(using Quotes): Expr[Unit] =
@@ -341,9 +430,33 @@ object ConstantListImpl:
     Expr.ofTupleFromSeq(unlist(l))
 
 object ConstantTupleImpl:
+  def prepend[Tup <: Tuple : Type, X: Type](te: Expr[Tup], xe: Expr[X])(using Quotes): Expr[X *: Tup] =
+    val tseq = untuple[Any](te)
+    Expr.ofTupleFromSeq(xe +: tseq).asInstanceOf[Expr[X *: Tup]]
+
+  def append[Tup <: Tuple : Type, X: Type](te: Expr[Tup], xe: Expr[X])(using Quotes): Expr[Tuple.Append[Tup, X]] =
+    val tseq = untuple[Any](te)
+    Expr.ofTupleFromSeq(tseq.appended(xe)).asInstanceOf[Expr[Tuple.Append[Tup, X]]]
+
+  def insert[Tup <: Tuple : Type, X : Type](te: Expr[Tup], pose: Expr[Int], xe: Expr[X])(using Quotes): Expr[Tuple] =
+    val pos = pose.valueOrAbort
+    val tbuf = untuple[Any](te).toBuffer
+    tbuf.insert(pos, xe)
+    Expr.ofTupleFromSeq(tbuf.toSeq)
+
+  def concat[T1 <: Tuple : Type, T2 <: Tuple : Type](t1e: Expr[T1], t2e: Expr[T2])(using Quotes): Expr[Tuple.Concat[T1, T2]] =
+    val t1seq = untuple[Any](t1e)
+    val t2seq = untuple[Any](t2e)
+    Expr.ofTupleFromSeq(t1seq ++ t2seq).asInstanceOf[Expr[Tuple.Concat[T1, T2]]]
+
   def forEachUnrolled[Tup <: Tuple : Type](t: Expr[Tup], f: Expr[Any => Unit])(using Quotes): Expr[Unit] =
     val bseq = untuple[Any](t)
-    val exprs = bseq.map(arg => betaReduceFixE('{ $f($arg) }))
+    val exprs = bseq.map(arg => exprTransform[Unit](simplifyTrivialValDef)(betaReduceFixE('{ $f($arg) })))
+    Expr.block(exprs.init.toList, exprs.last)
+
+  def forEachBoundedUnrolled[Tup <: Tuple : Type, B : Type](t: Expr[Tup], f: Expr[B => Unit])(using Quotes): Expr[Unit] =
+    val bseq = untuple[B](t)
+    val exprs = bseq.map(arg => exprTransform[Unit](simplifyTrivialValDef)(betaReduceFixE('{ $f($arg) })))
     Expr.block(exprs.init.toList, exprs.last)
 
   def mapUnrolled[Tup <: Tuple : Type, F[_] : Type](t: Expr[Tup], f: Expr[[X] => X => F[X]])(using Quotes): Expr[Tuple.Map[Tup, F]] =
@@ -354,14 +467,24 @@ object ConstantTupleImpl:
 
   def mapBoundedUnrolled[Tup <: Tuple : Type, B : Type, R : Type](t: Expr[Tup], f: Expr[B => R])(using Quotes): Expr[Tuple.Map[Tup, [_] =>> R]] =
     val bseq = untuple[B](t)
-    val rseq = bseq.map(arg => betaReduceFixE('{ $f($arg) }))
+    val rseq = bseq.map(arg => exprTransform[R](simplifyTrivialValDef)(betaReduceFixE('{ $f($arg) })))
     Expr.ofTupleFromSeq(rseq).asInstanceOf[Expr[Tuple.Map[Tup, [_] =>> R]]]
+
+  def tabulateUnrolled[N <: Int : Type, R : Type](ne: Expr[N], f: Expr[Int => R])(using Quotes): Expr[Tuple] =
+    val length = ne.valueOrAbort
+    val rseq = Seq.range(0, length).map(i => exprTransform[R](simplifyTrivialValDef)(betaReduceFixE('{ $f(${ Expr(i) }) })))
+    Expr.ofTupleFromSeq(rseq)
+
+  def fillUnrolled[N <: Int : Type, R : Type](ne: Expr[N], f: Expr[R])(using Quotes): Expr[Tuple] =
+    val length = ne.valueOrAbort
+    val rseq = Seq.range(0, length).map(_ => exprTransform[R](simplifyTrivialValDef)(betaReduceFixE(f)))
+    Expr.ofTupleFromSeq(rseq)
 
 object ConstantArgsImpl:
   def forEachUnrolled(t: Expr[Seq[Any]], f: Expr[Any => Unit])(using Quotes): Expr[Unit] =
     import quotes.reflect.*
     val Varargs(args) = t: @unchecked
-    val exprs = args.map(arg => betaReduceFixE('{ $f($arg) }))
+    val exprs = args.map(arg => exprTransform[Unit](simplifyTrivialValDef)(betaReduceFixE('{ $f($arg) })))
     Expr.block(exprs.init.toList, exprs.last)
 
   def toTup(t: Expr[Seq[Any]])(using Quotes): Expr[Tuple] =
