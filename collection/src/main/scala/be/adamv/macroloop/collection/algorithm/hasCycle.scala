@@ -1,4 +1,4 @@
-package be.adamv.macroloop.collection.algorithms
+package be.adamv.macroloop.collection.algorithm
 
 import be.adamv.macroloop.IntRange
 import be.adamv.macroloop.collection.Matrix

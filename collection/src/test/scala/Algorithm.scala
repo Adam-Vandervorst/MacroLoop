@@ -1,7 +1,7 @@
 import munit.FunSuite
 
 import be.adamv.macroloop.collection.*
-import be.adamv.macroloop.collection.algorithms.*
+import be.adamv.macroloop.collection.algorithm.*
 
 object TestHasCycle:
   val pos1 = Matrix(
@@ -45,7 +45,7 @@ object TestHasCycle:
   )
 
 
-class Algorithms extends FunSuite:
+class Algorithm extends FunSuite:
   test("pos hasCycle") {
     import TestHasCycle.*
     assert(hasCycle(pos1))
