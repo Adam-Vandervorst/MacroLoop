@@ -14,7 +14,7 @@ class LiteralIntRange extends LiteralFunSuite:
         val x = i
         println(x)
         i += 1
-    }: scala.Unit)
+    }: Unit)
   }
 
   test("forEachUnrolled") {
@@ -22,8 +22,43 @@ class LiteralIntRange extends LiteralFunSuite:
       println(1)
       println(2)
       println(3)
-    }: scala.Unit)
+    }: Unit)
   }
+
+  test("forall") {
+    assertCodeMatches(IntRange.forall(0, 10, 2)(_ < 100), {
+      var i: Int = 0
+      while i < 10 do
+        if i < 100 then i += 2
+        else i = 2147483647
+      i < 2147483647
+    }: Boolean)
+  }
+
+  test("exists") {
+    assertCodeMatches(IntRange.exists(0, 10, 2)(_ < 100), {
+      var i: Int = 0
+      while i < 10 do
+        if i < 100 then i = 2147483647
+        else i += 2
+      i == 2147483647
+    }: Boolean)
+  }
+
+  test("forallUnrolled") {
+    val m = 2
+    assertCodeMatches(IntRange.forallUnrolled(0, 10, 2)(_ % m == 0), {
+      0 % m == 0 && 2 % m == 0 && 4 % m == 0 && 6 % m == 0 && 8 % m == 0
+    }: Boolean)
+  }
+
+  test("existsUnrolled") {
+    val m = 2
+    assertCodeMatches(IntRange.existsUnrolled(0, 10, 2)(_ % m == 0), {
+      0 % m == 0 || 2 % m == 0 || 4 % m == 0 || 6 % m == 0 || 8 % m == 0
+    }: Boolean)
+  }
+
 
 class LiteralIt extends LiteralFunSuite:
   test("forEach") {

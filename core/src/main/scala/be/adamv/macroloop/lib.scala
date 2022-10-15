@@ -16,6 +16,18 @@ object IntRange:
   inline def forEachUnrolled(inline start: Int, inline stop: Int, inline step: Int)(inline f: Int => Unit): Unit =
     ${ IntRangeImpl.forEachUnrolled('start, 'stop, 'step, 'f) }
 
+  inline def forall(inline start: Int, inline stop: Int, inline step: Int)(inline f: Int => Boolean): Boolean =
+    ${ IntRangeImpl.forall('start, 'stop, 'step, 'f) }
+
+  inline def forallUnrolled(inline start: Int, inline stop: Int, inline step: Int)(inline f: Int => Boolean): Boolean =
+    ${ IntRangeImpl.forallUnrolled('start, 'stop, 'step, 'f) }
+
+  inline def exists(inline start: Int, inline stop: Int, inline step: Int)(inline f: Int => Boolean): Boolean =
+    ${ IntRangeImpl.exists('start, 'stop, 'step, 'f) }
+
+  inline def existsUnrolled(inline start: Int, inline stop: Int, inline step: Int)(inline f: Int => Boolean): Boolean =
+    ${ IntRangeImpl.existsUnrolled('start, 'stop, 'step, 'f) }
+
 object IterableIt:
   // `Iterator` arguments are *not* inlined
   inline def forEach[T](it: IterableOnce[T])(inline f: T => Unit): Unit =

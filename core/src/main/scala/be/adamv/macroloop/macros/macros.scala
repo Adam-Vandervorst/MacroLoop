@@ -156,6 +156,39 @@ object IntRangeImpl:
         i += $step
     }
 
+  def forall(start: Expr[Int], stop: Expr[Int], step: Expr[Int], f: Expr[Int => Boolean])(using Quotes): Expr[Boolean] =
+    '{
+      var i = $start
+      while i < $stop do
+        if ${ exprTransform[Boolean](simplifyTrivialValDef)(betaReduceFixE('{ $f(i) })) } then
+          i += $step
+        else
+          i = Int.MaxValue
+      i < Int.MaxValue
+    }
+
+  def forallUnrolled(start: Expr[Int], stop: Expr[Int], step: Expr[Int], f: Expr[Int => Boolean])(using Quotes): Expr[Boolean] =
+    val range = Range(start.valueOrAbort, stop.valueOrAbort, step.valueOrAbort)
+    if range.isEmpty then Expr(true)
+    else range.map(Expr(_)).map(i => betaReduceFixE('{ $f($i) })).reduce((x, y) => '{ $x && $y })
+
+  def exists(start: Expr[Int], stop: Expr[Int], step: Expr[Int], f: Expr[Int => Boolean])(using Quotes): Expr[Boolean] =
+    '{
+      var i = $start
+      while i < $stop do
+        if ${ exprTransform[Boolean](simplifyTrivialValDef)(betaReduceFixE('{ $f(i) })) } then
+          i = Int.MaxValue
+        else
+          i += $step
+      i == Int.MaxValue
+    }
+
+  def existsUnrolled(start: Expr[Int], stop: Expr[Int], step: Expr[Int], f: Expr[Int => Boolean])(using Quotes): Expr[Boolean] =
+    val range = Range(start.valueOrAbort, stop.valueOrAbort, step.valueOrAbort)
+    if range.isEmpty then Expr(false)
+    else range.map(Expr(_)).map(i => betaReduceFixE('{ $f($i) })).reduce((x, y) => '{ $x || $y })
+
+
 object IterableItImpl:
   private def forEachE[T : Type](ito: Expr[IterableOnce[T]], ef: Expr[T] => Expr[Unit])(using Quotes): Expr[Unit] = '{
     val it: Iterator[T] = $ito.iterator
