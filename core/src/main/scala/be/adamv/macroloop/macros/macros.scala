@@ -153,10 +153,10 @@ def lambdaDestruct(using q: Quotes)(f: q.reflect.Term)(owner: q.reflect.Symbol):
     case Block(List(DefDef(_, List(TermParamClause(List(vdef))), _, Some(body))), _: q.reflect.Closure) => Some((vdef.symbol, body))
     case _ => None
 
-def applyTupleDestruct[Tup <: Tuple : Type, R : Type](t: Tuple.Map[Tup, Expr], f: Expr[Tup => R])(using q: Quotes)(owner: q.reflect.Symbol): Expr[R] =
+def applyTupleDestruct[Tup <: Tuple : Type, R : Type](t: Tuple.Map[Tup, Expr], f: Expr[Tup => R])(using q: Quotes): Expr[R] =
   import quotes.reflect.*
   import reflect.Selectable.reflectiveSelectable
-  lambdaDestruct(f.asTerm)(owner) match
+  lambdaDestruct(f.asTerm)(Symbol.spliceOwner) match
     case Some((symbol, body)) =>
       val reduced = constantFoldSelected(body, (x, n) =>
         Option.when(symbol == x)(t.asInstanceOf[Tuple.Map[Tup, Expr] & Selectable].selectDynamic(n).asInstanceOf[Expr[Any]].asTerm))
@@ -164,6 +164,12 @@ def applyTupleDestruct[Tup <: Tuple : Type, R : Type](t: Tuple.Map[Tup, Expr], f
       reduced.asExprOf[R]
     case None =>
       '{ $f(${ tupleToExpr[Tup](t) }) }
+
+extension [X : Type](initial: Expr[X])
+  def mutating[Y : Type](cont: (Expr[X], Expr[X => Unit]) => Expr[Y])(using Quotes): Expr[Y] = '{
+    var i = $initial
+    ${ cont('i, '{ i = _ }) }
+  }
 
 import quoted.FromExpr.BooleanFromExpr
 val PrimitiveFromExpr = quoted.FromExpr.BooleanFromExpr.asInstanceOf[FromExpr[Const]]
@@ -203,7 +209,21 @@ object IntRangeImpl:
     }
 
   def forEachZipped[Tup <: Tuple : Type](ssst: Expr[Tuple.Map[Tup, [_] =>> (Int, Int, Int)]], f: Expr[Tuple.Map[Tup, [_] =>> Int] => Unit])(using q: Quotes): Expr[Unit] =
-    ???
+    val Seq(starts, stops, steps) = untuple[(Int, Int, Int)](ssst).map(untuple[Int](_)).transpose
+
+    def rec(c: Int, updates: List[Expr[Unit]], conditions: List[Expr[Boolean]], args: Tuple): Expr[Unit] =
+      if c < 0 then '{
+        while ${ conditions.reduce((x, y) => '{ $x && $y }) } do
+          ${ applyTupleDestruct[Tuple.Map[Tup, [_] =>> Int], Unit](args.asInstanceOf, f) }
+          ${ Expr.block(updates.init, updates.last) }
+      } else starts(c) mutating { (value, update) =>
+        rec(c - 1,
+          exprTreeTransform[Unit](buildValDefElim)(betaReduceFixE('{ $update($value + ${ steps(c) }) }))::updates,
+          '{ $value < ${ stops(c) } }::conditions,
+          value *: args)
+      }
+
+    rec(starts.length - 1, Nil, Nil, EmptyTuple)
 
 object IterableItImpl:
   private def forEachE[T : Type](ito: Expr[IterableOnce[T]], ef: Expr[T] => Expr[Unit])(using Quotes): Expr[Unit] = '{
@@ -227,10 +247,9 @@ object IterableItImpl:
     unroll[0](seq, EmptyTuple)
 
   def forallExceptionCart[Tup <: Tuple : Type](tite: Expr[Tuple.Map[Tup, Iterable]], f: Expr[Tup => Boolean])(using q: Quotes): Expr[Boolean] =
-    import q.reflect.*
     val seq = untuple[Iterable[Any]](tite)
     def unroll[I <: Int : Type](ites: Seq[Expr[Iterable[Any]]], args: Tuple): Expr[Unit] = ites match
-      case Nil => '{ if !${ applyTupleDestruct[Tup, Boolean](args.asInstanceOf, f)(using q)(Symbol.spliceOwner) } then throw Break }
+      case Nil => '{ if !${ applyTupleDestruct[Tup, Boolean](args.asInstanceOf, f) } then throw Break }
       case ite::ites => forEachE(ite.asExprOf[Iterable[Tuple.Elem[Tup, I]]], et => unroll[S[I]](ites, args :* et))
     '{
       try

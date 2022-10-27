@@ -36,6 +36,19 @@ class LiteralIntRange extends LiteralFunSuite:
     }: Unit)
   }
 
+  test("forEachZipped") {
+    assertCodeMatches(IntRange.forEachZipped[(Unit, Unit, Unit)]((0, 10, 1), (10, 101, 10), (1, 6, 2))((t: (Int, Int, Int)) => println(t._1 - t._2)), {
+      var i3 = 1
+      var i2 = 10
+      var i1 = 0
+      while i1 < 10 && i2 < 101 && i3 < 6 do
+        println(i1 - i2)
+        i1 += 1
+        i2 += 10
+        i3 += 2
+    }: Unit)
+  }
+
 
 class LiteralIt extends LiteralFunSuite:
   test("forEach") {
