@@ -18,6 +18,12 @@ object IntRange:
   inline def forEachUnrolled(inline start: Int, inline stop: Int, inline step: Int)(inline f: Int => Unit): Unit =
     ${ IntRangeImpl.forEachUnrolled('start, 'stop, 'step, 'f) }
 
+  inline def forEachZipped2(inline sss1: (Int, Int, Int), inline sss2: (Int, Int, Int))(inline f: (Int, Int) => Unit): Unit =
+    ${ IntRangeImpl.forEachZipped2('sss1, 'sss2, 'f) }
+
+  inline def forEachZipped[Tup <: Tuple](inline ssst: Tuple.Map[Tup, [_] =>> (Int, Int, Int)])(inline f: Tuple.Map[Tup, [_] =>> Int] => Unit): Unit =
+    ${ IntRangeImpl.forEachZipped('ssst, 'f) }
+
 object IterableIt:
   // `Iterator` arguments are *not* inlined
   inline def forEach[T](it: IterableOnce[T])(inline f: T => Unit): Unit =

@@ -25,6 +25,18 @@ class LiteralIntRange extends LiteralFunSuite:
     }: scala.Unit)
   }
 
+  test("forEachZipped2") {
+    assertCodeMatches(IntRange.forEachZipped2((0, 10, 1), (10, 101, 10))((x, y) => println(x - y)), {
+      var i1 = 0
+      var i2 = 10
+      while i1 < 10 && i2 < 101 do
+        println(i1 - i2)
+        i1 += 1
+        i2 += 10
+    }: Unit)
+  }
+
+
 class LiteralIt extends LiteralFunSuite:
   test("forEach") {
     val list = List('a', 'b', 'c')

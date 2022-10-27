@@ -373,3 +373,60 @@ class ArrayCopyParts:
       i += 1
     ar
 end ArrayCopyParts
+
+@State(Scope.Benchmark)
+@BenchmarkMode(Array(Mode.Throughput))
+class CustomSeq:
+  def Dima(n: Int) = Array(0,0) ++ (0 until 2*n).map(_ / 2 * 3)
+  def SkyWalker(n: Int) = Array(0,0) ++ Array.tabulate(n)(_*3).flatMap(x => Array(x, x))
+  def LowLevel(n: Int) =
+    val l = 2 + n*2
+    val a = new Array[Int](l)
+    a(0) = 0
+    a(1) = 0
+    var i = 2
+    var k = 0
+    while i < l do
+      a(i) = k
+      i += 1
+      a(i) = k
+      k += 3
+      i += 1
+    a
+
+//  def MacroLoop(n: Int) =
+//    val l = 2 + n * 2
+//    val a = new Array[Int](l)
+//    IntRange.forEach(2, l, 2){ i =>
+//      a(i) = k
+//      a(i + 1) = k
+//    }
+//    a(0) = 0
+//    a(1) = 0
+//    var i = 2
+//    var k = 0
+//    while i < l do
+//      a(i) = k
+//      i += 1
+//      a(i) = k
+//      k += 3
+//      i += 1
+//    a
+
+  def MarioGalic(n: Int) =  {
+    @annotation.tailrec def run(n: Int, acc: List[Int]): List[Int] = {
+      n match {
+        case 0 => 0 :: 0 :: 0 :: 0 :: acc
+        case i => run(i - 1, (i * 3) :: (i * 3) :: acc)
+      }
+    }
+    run(n-1, Nil)
+  }
+
+  val n = 10000
+  @Benchmark def _Luis = Luis(n)
+  @Benchmark def _Dima = Dima(n)
+  @Benchmark def _SkyWalker = SkyWalker(n)
+  @Benchmark def _MarioGalic = MarioGalic(n)
+  @Benchmark def _LowLevel = LowLevel(n)
+end CustomSeq
