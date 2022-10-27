@@ -7,6 +7,7 @@ import compiletime.ops.int.S
 import compiletime.*
 import be.adamv.macroloop.utils.*
 
+
 transparent inline def exprTransform[Y : Type](using q: Quotes)(f: q.reflect.Term => q.reflect.Term)(e: Expr[_]): Expr[Y] =
   import q.reflect.asTerm
   f(e.asTerm).asExprOf[Y]
@@ -147,16 +148,16 @@ def tupleToExpr[Tup <: Tuple : Type](t: Tuple.Map[Tup, Expr])(using Quotes): Exp
   val tupleApply = Select.unique(tupleObject.asTerm, "apply")
   Apply(TypeApply(tupleApply, types.map(Inferred(_))), terms).asExprOf[Tup]
 
-def lambdaDestruct(using q: Quotes)(f: q.reflect.Term)(owner: q.reflect.Symbol): Option[(q.reflect.Symbol, q.reflect.Term)] =
+def lambdaDestruct(using q: Quotes)(f: q.reflect.Term): Option[(q.reflect.Symbol, q.reflect.Term)] =
   import quotes.reflect.*
-  buildTrivialInlineElim().transformTerm(f)(Symbol.spliceOwner) match
+  simplifyTrivialInline(f) match
     case Block(List(DefDef(_, List(TermParamClause(List(vdef))), _, Some(body))), _: q.reflect.Closure) => Some((vdef.symbol, body))
     case _ => None
 
 def applyTupleDestruct[Tup <: Tuple : Type, R : Type](t: Tuple.Map[Tup, Expr], f: Expr[Tup => R])(using q: Quotes): Expr[R] =
   import quotes.reflect.*
   import reflect.Selectable.reflectiveSelectable
-  lambdaDestruct(f.asTerm)(Symbol.spliceOwner) match
+  lambdaDestruct(f.asTerm) match
     case Some((symbol, body)) =>
       val reduced = constantFoldSelected(body, (x, n) =>
         Option.when(symbol == x)(t.asInstanceOf[Tuple.Map[Tup, Expr] & Selectable].selectDynamic(n).asInstanceOf[Expr[Any]].asTerm))
@@ -164,12 +165,6 @@ def applyTupleDestruct[Tup <: Tuple : Type, R : Type](t: Tuple.Map[Tup, Expr], f
       reduced.asExprOf[R]
     case None =>
       '{ $f(${ tupleToExpr[Tup](t) }) }
-
-extension [X : Type](initial: Expr[X])
-  def mutating[Y : Type](cont: (Expr[X], Expr[X => Unit]) => Expr[Y])(using Quotes): Expr[Y] = '{
-    var i = $initial
-    ${ cont('i, '{ i = _ }) }
-  }
 
 import quoted.FromExpr.BooleanFromExpr
 val PrimitiveFromExpr = quoted.FromExpr.BooleanFromExpr.asInstanceOf[FromExpr[Const]]
@@ -193,6 +188,38 @@ object IntRangeImpl:
         ${ betaReduceFixE('{ $f(i) }) }
         i += $step
     }
+
+  def forall(start: Expr[Int], stop: Expr[Int], step: Expr[Int], f: Expr[Int => Boolean])(using Quotes): Expr[Boolean] =
+    '{
+      var i = $start
+      while i < $stop do
+        if ${ exprTransform[Boolean](simplifyTrivialValDef)(betaReduceFixE('{ $f(i) })) } then
+          i += $step
+        else
+          i = Int.MaxValue
+      i < Int.MaxValue
+    }
+
+  def forallUnrolled(start: Expr[Int], stop: Expr[Int], step: Expr[Int], f: Expr[Int => Boolean])(using Quotes): Expr[Boolean] =
+    val range = Range(start.valueOrAbort, stop.valueOrAbort, step.valueOrAbort)
+    if range.isEmpty then Expr(true)
+    else range.map(Expr(_)).map(i => betaReduceFixE('{ $f($i) })).reduce((x, y) => '{ $x && $y })
+
+  def exists(start: Expr[Int], stop: Expr[Int], step: Expr[Int], f: Expr[Int => Boolean])(using Quotes): Expr[Boolean] =
+    '{
+      var i = $start
+      while i < $stop do
+        if ${ exprTransform[Boolean](simplifyTrivialValDef)(betaReduceFixE('{ $f(i) })) } then
+          i = Int.MaxValue
+        else
+          i += $step
+      i == Int.MaxValue
+    }
+
+  def existsUnrolled(start: Expr[Int], stop: Expr[Int], step: Expr[Int], f: Expr[Int => Boolean])(using Quotes): Expr[Boolean] =
+    val range = Range(start.valueOrAbort, stop.valueOrAbort, step.valueOrAbort)
+    if range.isEmpty then Expr(false)
+    else range.map(Expr(_)).map(i => betaReduceFixE('{ $f($i) })).reduce((x, y) => '{ $x || $y })
 
   def forEachZipped2(sss1: Expr[(Int, Int, Int)], sss2: Expr[(Int, Int, Int)], f: Expr[(Int, Int) => Unit])(using Quotes): Expr[Unit] =
     val Seq(start1, stop1, step1) = untuple[Int](sss1)
@@ -224,6 +251,7 @@ object IntRangeImpl:
       }
 
     rec(starts.length - 1, Nil, Nil, EmptyTuple)
+
 
 object IterableItImpl:
   private def forEachE[T : Type](ito: Expr[IterableOnce[T]], ef: Expr[T] => Expr[Unit])(using Quotes): Expr[Unit] = '{

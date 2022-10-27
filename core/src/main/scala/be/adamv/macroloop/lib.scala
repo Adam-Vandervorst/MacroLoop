@@ -18,6 +18,18 @@ object IntRange:
   inline def forEachUnrolled(inline start: Int, inline stop: Int, inline step: Int)(inline f: Int => Unit): Unit =
     ${ IntRangeImpl.forEachUnrolled('start, 'stop, 'step, 'f) }
 
+  inline def forall(inline start: Int, inline stop: Int, inline step: Int)(inline f: Int => Boolean): Boolean =
+    ${ IntRangeImpl.forall('start, 'stop, 'step, 'f) }
+
+  inline def forallUnrolled(inline start: Int, inline stop: Int, inline step: Int)(inline f: Int => Boolean): Boolean =
+    ${ IntRangeImpl.forallUnrolled('start, 'stop, 'step, 'f) }
+
+  inline def exists(inline start: Int, inline stop: Int, inline step: Int)(inline f: Int => Boolean): Boolean =
+    ${ IntRangeImpl.exists('start, 'stop, 'step, 'f) }
+
+  inline def existsUnrolled(inline start: Int, inline stop: Int, inline step: Int)(inline f: Int => Boolean): Boolean =
+    ${ IntRangeImpl.existsUnrolled('start, 'stop, 'step, 'f) }
+
   inline def forEachZipped2(inline sss1: (Int, Int, Int), inline sss2: (Int, Int, Int))(inline f: (Int, Int) => Unit): Unit =
     ${ IntRangeImpl.forEachZipped2('sss1, 'sss2, 'f) }
 

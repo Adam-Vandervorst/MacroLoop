@@ -31,7 +31,23 @@ abstract class Matrix[M <: Int, N <: Int, A]:
   inline def apply(inline i: Int, inline j: Int): A = data(i*ncolumns + j)
   /** Set the element at row i and column j to v. */
   inline def update(inline i: Int, inline j: Int, inline v: A): Unit = data(i*ncolumns + j) = v
+  /** Check if a position i, j is within the bounds of this matrix. */
+  inline def containsPosition(inline i: Int, inline j: Int): Boolean =
+    0 <= i && i < nrows && 0 <= j && j < ncolumns
 
+  /** An iterator over all Matrix indices. */
+  inline def indices: Iterator[(Int, Int)] = new Iterator[(Int, Int)]:
+    var i = 0
+    var j = 0
+    override def hasNext: Boolean = i < nrows && j < ncolumns
+    override def next(): (Int, Int) =
+      val t = (i, j)
+      if j < ncolumns then
+        j += 1
+      else
+        i += 1
+        j = 0
+      t
   /** An iterator over all Matrix elements */
   inline def iterator: Iterator[A] = data.iterator
   /** An iterator over row-iterators. */
@@ -49,7 +65,6 @@ abstract class Matrix[M <: Int, N <: Int, A]:
           val r = data(j)
           j += 1
           r
-
   /** An iterator over column-iterators. */
   inline def columnsIt: Iterator[Iterator[A]] = new Iterator[Iterator[A]]:
     var j = 0
@@ -102,6 +117,26 @@ abstract class Matrix[M <: Int, N <: Int, A]:
     Matrix.wrap(SizedArrayIndex.mapForSize(data, constValue[M*N])(f))
   /** Each element gets expanded into a sub-matrix by f. */
   inline def flatMap[O <: Int, P <: Int, B](inline f: A => Matrix[O, P, B]): Matrix[M*O, N*P, B] = map(f).flatten
+
+  /** Checks if p holds for all items, exposing both the index and element. */
+  inline def forallItem(inline p: (Int, Int, A) => Boolean): Boolean =
+    var c = -1
+    IntRange.forall(0, nrows, 1) { i =>
+      IntRange.forall(0, ncolumns, 1) { j =>
+        c += 1
+        p(i, j, data(c))
+      }
+    }
+
+  /** Checks if there exists an item for which p holds, exposing both the index and element. */
+  inline def existsItem(inline p: (Int, Int, A) => Boolean): Boolean =
+    var c = -1
+    IntRange.exists(0, nrows, 1){ i =>
+      IntRange.exists(0, ncolumns, 1) { j =>
+        c += 1
+        p(i, j, data(c))
+      }
+    }
 
   // TODO what happens if the kernel is larger than the matrix here?
   /** Move kernel over the matrix, combining all overlapping pairs, and accumulating them with add and zero into a new entry. */
