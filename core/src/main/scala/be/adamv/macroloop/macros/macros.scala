@@ -41,7 +41,7 @@ def translateCodeImpl(x: Expr[Any], y: Expr[Any])(using Quotes): Expr[Any] =
   renameBoundFrom(x.asTerm, y.asTerm).asExpr
 
 def stripCast(using q: Quotes): q.reflect.Term => q.reflect.Term =
-  import quotes.reflect.*
+  import q.reflect.*
   def rec(tree: Term): Term = tree match
     case Inlined(_, Nil, e) => rec(e)
     case TypeApply(Select(x, "asInstanceOf" | "$asInstanceOf$"), _) => rec(x)
@@ -49,17 +49,17 @@ def stripCast(using q: Quotes): q.reflect.Term => q.reflect.Term =
   rec
 
 def buildRefRemap(using q: Quotes)(mapping: Map[q.reflect.Symbol, q.reflect.Term]): q.reflect.TreeMap =
-  import quotes.reflect.*
+  import q.reflect.*
   new TreeMap:
     override def transformTerm(tree: Term)(owner: Symbol): Term = tree match
       case i: Ident => mapping.unapply(i.symbol).getOrElse(i)
       case _ => super.transformTerm(tree)(owner)
 
 def buildValDefElim(using q: Quotes): q.reflect.TreeMap =
-  import quotes.reflect.*
+  import q.reflect.{ValDefTypeTest, *}
   new TreeMap:
     override def transformTerm(tree: Term)(owner: Symbol): Term = tree match
-      case Block(vds, e) =>
+      case Block(vds, e) if vds.forall(vd => ValDefTypeTest.unapply(vd).nonEmpty) =>
         val mapping = vds.collect{
           case vd @ ValDef(n, _, Some(t))
             if !buildTrivialInlineElim().transformTerm(t)(owner).symbol.flags.is(Flags.Method)
@@ -71,7 +71,7 @@ def buildValDefElim(using q: Quotes): q.reflect.TreeMap =
       case _ => super.transformTerm(tree)(owner)
 
 def buildTrivialInlineElim(using q: Quotes)(simplifyNamed: Boolean = false): q.reflect.TreeMap =
-  import quotes.reflect.*
+  import q.reflect.*
   new TreeMap:
     override def transformTerm(tree: Term)(owner: Symbol): Term = tree match
       case Inlined(None, Nil, b) => transformTerm(b)(owner)
@@ -79,7 +79,7 @@ def buildTrivialInlineElim(using q: Quotes)(simplifyNamed: Boolean = false): q.r
       case _ => super.transformTerm(tree)(owner)
 
 def constantFoldSelected(using q: Quotes)(x: q.reflect.Term, reduction: (q.reflect.Symbol, String) => Option[q.reflect.Term]): q.reflect.Term =
-  import quotes.reflect.*
+  import q.reflect.*
   val rewr = new TreeMap:
     override def transformTerm(tree: Term)(owner: Symbol): Term = tree match
       case s @ Select(q, name) => reduction(q.symbol, name).fold(Select.copy(tree)(transformTerm(q)(owner), name))(transformTerm(_)(owner))
@@ -88,7 +88,7 @@ def constantFoldSelected(using q: Quotes)(x: q.reflect.Term, reduction: (q.refle
 
 def gatherValDefSymbols(using q: Quotes)(x: q.reflect.Term): List[q.reflect.Symbol] =
   import collection.mutable.ListBuffer
-  import quotes.reflect.*
+  import q.reflect.*
   val acc = new TreeAccumulator[ListBuffer[Symbol]]:
     def foldTree(syms: ListBuffer[Symbol], tree: Tree)(owner: Symbol): ListBuffer[Symbol] = tree match
       case vdef @ ValDef(_, _, rhs) => rhs.map(t => foldTree(syms, t)(owner)).getOrElse(syms).append(vdef.symbol)
@@ -148,16 +148,16 @@ def tupleToExpr[Tup <: Tuple : Type](t: Tuple.Map[Tup, Expr])(using Quotes): Exp
   val tupleApply = Select.unique(tupleObject.asTerm, "apply")
   Apply(TypeApply(tupleApply, types.map(Inferred(_))), terms).asExprOf[Tup]
 
-def lambdaDestruct(using q: Quotes)(f: q.reflect.Term): Option[(q.reflect.Symbol, q.reflect.Term)] =
+def lambdaDestruct(using q: Quotes)(f: q.reflect.Term)(owner: q.reflect.Symbol): Option[(q.reflect.Symbol, q.reflect.Term)] =
   import quotes.reflect.*
-  simplifyTrivialInline(f) match
+  buildTrivialInlineElim().transformTerm(f)(Symbol.spliceOwner) match
     case Block(List(DefDef(_, List(TermParamClause(List(vdef))), _, Some(body))), _: q.reflect.Closure) => Some((vdef.symbol, body))
     case _ => None
 
 def applyTupleDestruct[Tup <: Tuple : Type, R : Type](t: Tuple.Map[Tup, Expr], f: Expr[Tup => R])(using q: Quotes): Expr[R] =
   import quotes.reflect.*
   import reflect.Selectable.reflectiveSelectable
-  lambdaDestruct(f.asTerm) match
+  lambdaDestruct(f.asTerm)(Symbol.spliceOwner) match
     case Some((symbol, body)) =>
       val reduced = constantFoldSelected(body, (x, n) =>
         Option.when(symbol == x)(t.asInstanceOf[Tuple.Map[Tup, Expr] & Selectable].selectDynamic(n).asInstanceOf[Expr[Any]].asTerm))
@@ -165,6 +165,12 @@ def applyTupleDestruct[Tup <: Tuple : Type, R : Type](t: Tuple.Map[Tup, Expr], f
       reduced.asExprOf[R]
     case None =>
       '{ $f(${ tupleToExpr[Tup](t) }) }
+
+extension [X : Type](initial: Expr[X])
+  def mutating[Y : Type](cont: (Expr[X], Expr[X => Unit]) => Expr[Y])(using Quotes): Expr[Y] = '{
+    var i = $initial
+    ${ cont('i, '{ i = _ }) }
+  }
 
 import quoted.FromExpr.BooleanFromExpr
 val PrimitiveFromExpr = quoted.FromExpr.BooleanFromExpr.asInstanceOf[FromExpr[Const]]
@@ -193,7 +199,7 @@ object IntRangeImpl:
     '{
       var i = $start
       while i < $stop do
-        if ${ exprTransform[Boolean](simplifyTrivialValDef)(betaReduceFixE('{ $f(i) })) } then
+        if ${ exprTreeTransform[Boolean](buildValDefElim)(betaReduceFixE('{ $f(i) })) } then
           i += $step
         else
           i = Int.MaxValue
@@ -209,7 +215,7 @@ object IntRangeImpl:
     '{
       var i = $start
       while i < $stop do
-        if ${ exprTransform[Boolean](simplifyTrivialValDef)(betaReduceFixE('{ $f(i) })) } then
+        if ${ exprTreeTransform[Boolean](buildValDefElim)(betaReduceFixE('{ $f(i) })) } then
           i = Int.MaxValue
         else
           i += $step
