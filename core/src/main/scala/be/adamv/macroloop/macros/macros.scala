@@ -154,15 +154,28 @@ def lambdaDestruct(using q: Quotes)(f: q.reflect.Term)(owner: q.reflect.Symbol):
     case Block(List(DefDef(_, List(TermParamClause(List(vdef))), _, Some(body))), _: q.reflect.Closure) => Some((vdef.symbol, body))
     case _ => None
 
+def matchBindings(using q: Quotes)(m: q.reflect.Term)(owner: q.reflect.Symbol): Option[(List[q.reflect.Symbol], q.reflect.Term)] =
+  import quotes.reflect.*
+  m match
+    case Match(Ident(_), List(q.reflect.CaseDef(Unapply(fun, List(), bindings), None, rhs))) =>
+      Some((bindings.map(_.symbol), rhs))
+    case _ => None
+
 def applyTupleDestruct[Tup <: Tuple : Type, R : Type](t: Tuple.Map[Tup, Expr], f: Expr[Tup => R])(using q: Quotes): Expr[R] =
   import quotes.reflect.*
   import reflect.Selectable.reflectiveSelectable
   lambdaDestruct(f.asTerm)(Symbol.spliceOwner) match
     case Some((symbol, body)) =>
-      val reduced = constantFoldSelected(body, (x, n) =>
-        Option.when(symbol == x)(t.asInstanceOf[Tuple.Map[Tup, Expr] & Selectable].selectDynamic(n).asInstanceOf[Expr[Any]].asTerm))
-      // TODO constant fold apply too
-      reduced.asExprOf[R]
+      matchBindings(body)(Symbol.spliceOwner) match // TODO tighten matching
+        case Some((bindings, rhs)) =>
+          assert(bindings.length == t.size)
+          buildRefRemap(bindings.zip(t.toList.map(_.asInstanceOf[Expr[Any]].asTerm)).toMap).transformTerm(rhs)(Symbol.spliceOwner).asExprOf[R]
+        case None =>
+          // TODO this can still be an automatic expansion, which will crash the solution below
+          val reduced = constantFoldSelected(body, (x, n) =>
+            Option.when(symbol == x)(t.asInstanceOf[Tuple.Map[Tup, Expr] & Selectable].selectDynamic(n).asInstanceOf[Expr[Any]].asTerm))
+          // TODO constant fold apply too
+          reduced.asExprOf[R]
     case None =>
       '{ $f(${ tupleToExpr[Tup](t) }) }
 

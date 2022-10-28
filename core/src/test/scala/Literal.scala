@@ -84,6 +84,24 @@ class LiteralIntRange extends LiteralFunSuite:
     }: Unit)
   }
 
+  test("forEachZipped match") {
+    val n = 10
+    val l = 2 + n * 2
+    val a = new Array[Int](l)
+    assertCodeMatches(IntRange.forEachZipped[(Unit, Unit)]((2, l, 2), (0, Int.MaxValue, 3)) { case (x: Int, y: Int) =>
+      a(x) = y
+      a(x + 1) = y
+    }, {
+      var i2: Int = 0
+      var i1: Int = 2
+      while i1 < l && i2 < 2147483647 do
+        a(i1) = i2
+        a(i1 + 1) = i2
+        i1 += 2
+        i2 += 3
+    }: Unit)
+  }
+
 
 class LiteralIt extends LiteralFunSuite:
   test("forEach") {
@@ -135,13 +153,13 @@ class LiteralIt extends LiteralFunSuite:
     }: Unit)
   }
 
-  test("forallExceptionCart") {
+  test("forallExceptionCart match") {
     import be.adamv.macroloop.macros.Break
     val list = List('a', 'b', 'c')
     val range = List.range(1, 10)
     val array = Array(1, 2, 3)
 
-    assertCodeMatches(IterableIt.forallExceptionCart[(Char, Int, Int)]((list, array, range))(t => t._2*t._3 <= 10), {
+    assertCodeMatches(IterableIt.forallExceptionCart[(Char, Int, Int)]((list, array, range)){ case (_, y, z) => y*z <= 10 }, {
       try
         val xit: Iterator[Char] = list.iterator
         while xit.hasNext do
