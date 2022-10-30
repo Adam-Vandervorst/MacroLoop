@@ -121,8 +121,8 @@ abstract class Matrix[M <: Int, N <: Int, A]:
   /** Checks if p holds for all items, exposing both the index and element. */
   inline def forallItem(inline p: (Int, Int, A) => Boolean): Boolean =
     var c = -1
-    IntRange.forall(0, nrows, 1) { i =>
-      IntRange.forall(0, ncolumns, 1) { j =>
+    IntRange.forall(nrows) { i =>
+      IntRange.forall(ncolumns) { j =>
         c += 1
         p(i, j, data(c))
       }
@@ -131,8 +131,8 @@ abstract class Matrix[M <: Int, N <: Int, A]:
   /** Checks if there exists an item for which p holds, exposing both the index and element. */
   inline def existsItem(inline p: (Int, Int, A) => Boolean): Boolean =
     var c = -1
-    IntRange.exists(0, nrows, 1){ i =>
-      IntRange.exists(0, ncolumns, 1) { j =>
+    IntRange.exists(nrows){ i =>
+      IntRange.exists(ncolumns) { j =>
         c += 1
         p(i, j, data(c))
       }
@@ -197,7 +197,7 @@ abstract class Matrix[M <: Int, N <: Int, A]:
   inline def hadamard[B, C](that: Matrix[M, N, B],
       inline combine: (A, B) => C): Matrix[M, N, C] =
     val cdata: Array[C] = SizedArrayIndex.ofSize[M*N, C]
-    IntRange.forEach(0, constValue[M*N], 1)(i => cdata(i) = combine(this.data(i), that.data(i)))
+    IntRange.forEach(constValue[M*N])(i => cdata(i) = combine(this.data(i), that.data(i)))
     Matrix.wrap(cdata)
 
   /** Generalized frobenius (inner) product for different input matrix types and output type. */
@@ -283,7 +283,7 @@ object Matrix:
   /** Fill a matrix with a certain element. */
   inline def fill[M <: Int, N <: Int, A](v: A): Matrix[M, N, A] =
     val data: Array[A] = SizedArrayIndex.ofSize[M*N, A]
-    IntRange.forEach(0, constValue[M*N], 1)(i => data(i) = v)
+    IntRange.forEach(constValue[M*N])(i => data(i) = v)
     Matrix.wrap(data)
 
   extension [M <: Int, N <: Int, A](m: Matrix[M, N, A])

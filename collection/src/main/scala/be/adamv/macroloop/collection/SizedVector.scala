@@ -32,15 +32,12 @@ abstract class SizedVector[N <: Int, A]:
 
   /** Divide up this vector in DN chunks, creating a vector of vectors. */
   inline def chunked[DN <: Int](using N % DN =:= 0): SizedVector[DN, SizedVector[N/DN, A]] =
-    val ndata = SizedArrayIndex.ofSize[DN, SizedVector[N/DN, A]]
     val isize = constValue[N/DN]
-    var i = 0
-    while i < length do
-      val idata = SizedArrayIndex.ofSize[N/DN, A]
-      Array.copy(data, i*isize, idata, 0, isize)
-      ndata(i) = SizedVector.wrap(idata)
-      i += 1
-    SizedVector.wrap(ndata)
+    SizedVector.tabulate { i =>
+      val idata = SizedArrayIndex.ofSize[N / DN, A]
+      Array.copy(data, i * isize, idata, 0, isize)
+      SizedVector.wrap(idata)
+    }
   /** Take an I1 to I2 slice. */
   inline def slice[I1 <: Int, I2 <: Int]: SizedVector[I2 - I1, A] =
     SizedVector.wrap(data.slice(constValue[I1], constValue[I2]))
@@ -63,7 +60,7 @@ abstract class SizedVector[N <: Int, A]:
     val c = kernel.length/2
 
     val result: Array[C] = SizedArrayIndex.ofSize[N, C]
-    IntRange.forEach(0, constValue[N], 1)(i => result(i) = zero)
+    IntRange.forEach(constValue[N])(i => result(i) = zero)
 
     for i <- 0 until length
         k <- 0 until kernel.length do
@@ -93,16 +90,14 @@ abstract class SizedVector[N <: Int, A]:
                                inline combine: (A, B) => C): SizedVector[N, C] =
 
     val cdata: Array[C] = SizedArrayIndex.ofSize[N, C]
-    IntRange.forEach(0, constValue[N], 1)(i => cdata(i) = combine(this.data(i), that.data(i)))
+    IntRange.forEach(constValue[N])(i => cdata(i) = combine(this.data(i), that.data(i)))
     SizedVector.wrap(cdata)
 
   /** Generalized inner product for different input vector types and output type. */
   inline def inner[B, C](that: SizedVector[N, B],
                          inline combine: (A, B) => C, inline add: (C, C) => C, inline zero: C): C =
     var result = zero
-
-    for i <- 0 until length do
-      result = add(result, combine(this(i), that(i)))
+    IntRange.forEach(length)(i => result = add(result, combine(this(i), that(i))))
     result
 
   // FIXME standard toString is not-inlineable, so it doesn't allow a dimension-based representation
@@ -144,7 +139,7 @@ object SizedVector:
   /** Fill a SizedVector with elements dependent on their integer position. */
   inline def tabulate[N <: Int, A](inline f: Int => A): SizedVector[N, A] =
     val data: Array[A] = SizedArrayIndex.ofSize[N, A]
-    IntRange.forEach(0, constValue[N], 1)(i => data(i) = f(i))
+    IntRange.forEach(constValue[N])(i => data(i) = f(i))
     SizedVector.wrap(data)
 
   /** Fill a vector with a certain element. */

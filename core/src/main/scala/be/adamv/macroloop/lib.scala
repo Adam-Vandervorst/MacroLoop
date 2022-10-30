@@ -1,6 +1,9 @@
 package be.adamv.macroloop
 
 import be.adamv.macroloop.macros.*
+import be.adamv.macroloop.utils.Repeat
+
+import scala.annotation.targetName
 
 
 inline def show(inline a: Any): String = ${ showImpl('a) }
@@ -12,28 +15,59 @@ inline def staticClass[A]: Class[A] = ${ staticClassImpl[A] }
 
 
 object IntRange:
+  inline def forEach(inline stop: Int)(inline f: Int => Unit): Unit =
+    ${ IntRangeImpl.forEach('{ 0 }, 'stop, '{ 1 }, 'f) }
+  inline def forEach(inline start: Int, inline stop: Int)(inline f: Int => Unit): Unit =
+    ${ IntRangeImpl.forEach('start, 'stop, '{ 1 }, 'f) }
   inline def forEach(inline start: Int, inline stop: Int, inline step: Int)(inline f: Int => Unit): Unit =
     ${ IntRangeImpl.forEach('start, 'stop, 'step, 'f) }
 
+  inline def forEachUnrolled(inline stop: Int)(inline f: Int => Unit): Unit =
+    ${ IntRangeImpl.forEachUnrolled('{ 0 }, 'stop, '{ 1 }, 'f) }
+  inline def forEachUnrolled(inline start: Int, inline stop: Int)(inline f: Int => Unit): Unit =
+    ${ IntRangeImpl.forEachUnrolled('start, 'stop, '{ 1 }, 'f) }
   inline def forEachUnrolled(inline start: Int, inline stop: Int, inline step: Int)(inline f: Int => Unit): Unit =
     ${ IntRangeImpl.forEachUnrolled('start, 'stop, 'step, 'f) }
 
+  inline def forall(inline stop: Int)(inline f: Int => Boolean): Boolean =
+    ${ IntRangeImpl.forall('{ 0 }, 'stop, '{ 1 }, 'f) }
+  inline def forall(inline start: Int, inline stop: Int)(inline f: Int => Boolean): Boolean =
+    ${ IntRangeImpl.forall('start, 'stop, '{ 1 }, 'f) }
   inline def forall(inline start: Int, inline stop: Int, inline step: Int)(inline f: Int => Boolean): Boolean =
     ${ IntRangeImpl.forall('start, 'stop, 'step, 'f) }
 
+  inline def forallUnrolled(inline stop: Int)(inline f: Int => Boolean): Boolean =
+    ${IntRangeImpl.forallUnrolled('{ 0 }, 'stop, '{ 1 }, 'f)}
+  inline def forallUnrolled(inline start: Int, inline stop: Int)(inline f: Int => Boolean): Boolean =
+    ${IntRangeImpl.forallUnrolled('start, 'stop, '{ 1 }, 'f)}
   inline def forallUnrolled(inline start: Int, inline stop: Int, inline step: Int)(inline f: Int => Boolean): Boolean =
     ${ IntRangeImpl.forallUnrolled('start, 'stop, 'step, 'f) }
 
+  inline def exists(inline stop: Int)(inline f: Int => Boolean): Boolean =
+    ${ IntRangeImpl.exists('{ 0 }, 'stop, '{ 1 }, 'f) }
+  inline def exists(inline start: Int, inline stop: Int)(inline f: Int => Boolean): Boolean =
+    ${IntRangeImpl.exists('start, 'stop, '{ 1 }, 'f)}
   inline def exists(inline start: Int, inline stop: Int, inline step: Int)(inline f: Int => Boolean): Boolean =
     ${ IntRangeImpl.exists('start, 'stop, 'step, 'f) }
 
+  inline def existsUnrolled(inline stop: Int)(inline f: Int => Boolean): Boolean =
+    ${ IntRangeImpl.existsUnrolled('{ 0 }, 'stop, '{ 1 }, 'f) }
+  inline def existsUnrolled(inline start: Int, inline stop: Int)(inline f: Int => Boolean): Boolean =
+    ${ IntRangeImpl.existsUnrolled('start, 'stop, '{ 1 }, 'f) }
   inline def existsUnrolled(inline start: Int, inline stop: Int, inline step: Int)(inline f: Int => Boolean): Boolean =
     ${ IntRangeImpl.existsUnrolled('start, 'stop, 'step, 'f) }
 
+  inline def forEachZipped2(inline s1: Int, inline s2: Int)(inline f: (Int, Int) => Unit): Unit =
+    ${ IntRangeImpl.forEachZipped2('{ (0, s1, 1) }, '{ (0, s2, 1) }, 'f) }
+  inline def forEachZipped2(inline ss1: (Int, Int), inline ss2: (Int, Int))(inline f: (Int, Int) => Unit): Unit =
+    ${ IntRangeImpl.forEachZipped2('{ ConstantTuple.append(ss1)(1) }, '{ ConstantTuple.append(ss2)(1) }, 'f) }
   inline def forEachZipped2(inline sss1: (Int, Int, Int), inline sss2: (Int, Int, Int))(inline f: (Int, Int) => Unit): Unit =
     ${ IntRangeImpl.forEachZipped2('sss1, 'sss2, 'f) }
 
-  inline def forEachZipped[Tup <: Tuple](inline ssst: Tuple.Map[Tup, [_] =>> (Int, Int, Int)])(inline f: Tuple.Map[Tup, [_] =>> Int] => Unit): Unit =
+//  @targetName("forEachZippedAbbreviated")
+//  inline def forEachZipped[N <: Int](inline sst: Repeat[N, (Int, Int)])(inline f: Repeat[N, Int] => Unit): Unit =
+//    ${ IntRangeImpl.forEachZipped[N]('{ ConstantTuple.mapFlatUnrolled(sst)((a: (Int, Int)) => ConstantTuple.append(a)(1)) }, 'f) }
+  inline def forEachZipped[N <: Int](inline ssst: Repeat[N, (Int, Int, Int)])(inline f: Repeat[N, Int] => Unit): Unit =
     ${ IntRangeImpl.forEachZipped('ssst, 'f) }
 
 object IterableIt:
@@ -68,7 +102,7 @@ object SizedArrayIndex:
   inline def mapUnrolled[T, R](inline a: Array[T], inline n: Int)(inline f: T => R): Array[R] =
     ${ SizedArrayIndexImpl.mapUnrolled('a, 'f, 'n) }
 
-  inline def mapUnrolledN[T, R, N <: Int & Singleton](inline k: N)(inline a: Array[T], inline n: Int)(inline f: T => R): Array[R] =
+  inline def mapUnrolledN[T, R](inline k: Int)(inline a: Array[T], inline n: Int)(inline f: T => R): Array[R] =
     ${ SizedArrayIndexImpl.mapUnrolledN('a, 'f, 'n, 'k) }
 
   inline def flatMapFullyUnrolled[T, R](inline a: Array[T], inline n: Int)(inline f: T => Array[R], inline m: Int): Array[R] =
@@ -81,7 +115,7 @@ object ArrayIndex:
   inline def map[T, R](inline a: Array[T])(inline f: T => R): Array[R] =
     ${ ArrayIndexImpl.map('a, 'f) }
 
-  inline def forEachUnrolledN[T, N <: Int & Singleton](inline n: N)(inline a: Array[T])(inline f: T => Unit): Unit =
+  inline def forEachUnrolledN[T](inline n: Int)(inline a: Array[T])(inline f: T => Unit): Unit =
     ${ ArrayIndexImpl.forEachUnrolledN('a, 'f, 'n) }
 
   inline def forallException[T](inline a: Array[T])(inline f: T => Boolean): Boolean =
@@ -100,13 +134,13 @@ object ConstantTuple:
     case _: EmptyTuple => Nil
     case _: (head *: tail) => constValue[head] :: constToList[tail]
 
-  transparent inline infix def prepend[Tup <: Tuple, I <: Int, X](inline t: Tup)(inline x: X): X *: Tup =
+  transparent inline def prepend[Tup <: Tuple, I <: Int, X](inline t: Tup)(inline x: X): X *: Tup =
     ${ ConstantTupleImpl.prepend('t, 'x) }
 
-  transparent inline infix def append[Tup <: Tuple, I <: Int, X](inline t: Tup)(inline x: X): Tuple.Append[Tup, X] =
+  transparent inline def append[Tup <: Tuple, I <: Int, X](inline t: Tup)(inline x: X): Tuple.Append[Tup, X] =
     ${ ConstantTupleImpl.append('t, 'x) }
 
-  transparent inline infix def insert[Tup <: Tuple, I <: Int, X](inline t: Tup)(inline pos: I, inline x: X): Tuple =
+  transparent inline def insert[Tup <: Tuple, I <: Int, X](inline t: Tup)(inline pos: I, inline x: X): Tuple =
     ${ ConstantTupleImpl.insert('t, 'pos, 'x) }
 
   transparent inline infix def concat[T1 <: Tuple, T2 <: Tuple](inline t1: T1, inline t2: T2): Tuple.Concat[T1, T2] =
@@ -121,13 +155,16 @@ object ConstantTuple:
   inline def mapUnrolled[Tup <: Tuple, F[_]](inline t: Tup)(inline f: [X] => X => F[X]): Tuple.Map[Tup, F] =
     ${ ConstantTupleImpl.mapUnrolled[Tup, F]('t, 'f) }
 
+  inline def mapFlatUnrolled[N <: Int, B, R](inline t: Repeat[N, B])(inline f: B => R): Repeat[N, R] =
+    ${ ConstantTupleImpl.mapFlatUnrolled('t, 'f) }
+
   inline def mapBoundedUnrolled[Tup <: Tuple, B, R](inline t: Tup)(inline f: B => R): Tuple.Map[Tup, [_] =>> R] =
     ${ ConstantTupleImpl.mapBoundedUnrolled('t, 'f) }
 
-  inline def tabulateUnrolled[N <: Int, R](inline n: N)(inline f: Int => R): Tuple =
+  transparent inline def tabulateUnrolled[N <: Int, R](inline n: N)(inline f: Int => R): Repeat[N, R] =
     ${ConstantTupleImpl.tabulateUnrolled('n, 'f)}
 
-  inline def fillUnrolled[N <: Int, R](inline n: N)(inline f: => R): Tuple =
+  transparent inline def fillUnrolled[N <: Int, R](inline n: N)(inline f: => R): Repeat[N, R] =
     ${ConstantTupleImpl.fillUnrolled('n, 'f)}
 
 

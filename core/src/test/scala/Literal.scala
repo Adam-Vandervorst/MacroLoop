@@ -71,8 +71,19 @@ class LiteralIntRange extends LiteralFunSuite:
     }: Unit)
   }
 
+  test("forEachZipped2 abbreviated") {
+    assertCodeMatches(IntRange.forEachZipped2((0, 10), (10, 20))((x, y) => println(x - y)), {
+      var i1 = 0
+      var i2 = 10
+      while i1 < 10 && i2 < 20 do
+        println(i1 - i2)
+        i1 += 1
+        i2 += 1
+    }: Unit)
+  }
+
   test("forEachZipped") {
-    assertCodeMatches(IntRange.forEachZipped[(Unit, Unit, Unit)]((0, 10, 1), (10, 101, 10), (1, 6, 2))((t: (Int, Int, Int)) => println(t._1 - t._2)), {
+    assertCodeMatches(IntRange.forEachZipped[3]((0, 10, 1), (10, 101, 10), (1, 6, 2))((t: (Int, Int, Int)) => println(t._1 - t._2)), {
       var i3 = 1
       var i2 = 10
       var i1 = 0
@@ -88,7 +99,7 @@ class LiteralIntRange extends LiteralFunSuite:
     val n = 10
     val l = 2 + n * 2
     val a = new Array[Int](l)
-    assertCodeMatches(IntRange.forEachZipped[(Unit, Unit)]((2, l, 2), (0, Int.MaxValue, 3)) { case (x: Int, y: Int) =>
+    assertCodeMatches(IntRange.forEachZipped[2]((2, l, 2), (0, Int.MaxValue, 3)) { case (x: Int, y: Int) =>
       a(x) = y
       a(x + 1) = y
     }, {
@@ -369,14 +380,14 @@ class LiteralConstantTuple extends LiteralFunSuite:
 
   test("tabulateUnrolled") {
     assertCodeMatches(ConstantTuple.tabulateUnrolled(4)(_*2),
-      Tuple4.apply[0, 2, 4, 6](0, 2, 4, 6): Tuple)
+      Tuple4.apply[0, 2, 4, 6](0, 2, 4, 6))
   }
 
   test("fillUnrolled") {
     val it = Iterator.iterate(0)(_ + 1)
 
     assertCodeMatches(ConstantTuple.fillUnrolled(4)(it.next()),
-      Tuple4.apply[Int, Int, Int, Int](it.next(), it.next(), it.next(), it.next()): Tuple)
+      Tuple4.apply[Int, Int, Int, Int](it.next(), it.next(), it.next(), it.next()))
   }
 
 class LiteralArgsTuple extends LiteralFunSuite:

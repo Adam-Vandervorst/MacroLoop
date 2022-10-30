@@ -254,13 +254,13 @@ object IntRangeImpl:
         i2 += $step2
     }
 
-  def forEachZipped[Tup <: Tuple : Type](ssst: Expr[Tuple.Map[Tup, [_] =>> (Int, Int, Int)]], f: Expr[Tuple.Map[Tup, [_] =>> Int] => Unit])(using q: Quotes): Expr[Unit] =
+  def forEachZipped[N <: Int : Type](ssst: Expr[Repeat[N, (Int, Int, Int)]], f: Expr[Repeat[N, Int] => Unit])(using q: Quotes): Expr[Unit] =
     val Seq(starts, stops, steps) = untuple[(Int, Int, Int)](ssst).map(untuple[Int](_)).transpose
 
     def rec(c: Int, updates: List[Expr[Unit]], conditions: List[Expr[Boolean]], args: Tuple): Expr[Unit] =
       if c < 0 then '{
         while ${ conditions.reduce((x, y) => '{ $x && $y }) } do
-          ${ applyTupleDestruct[Tuple.Map[Tup, [_] =>> Int], Unit](args.asInstanceOf, f) }
+          ${ applyTupleDestruct[Repeat[N, Int], Unit](args.asInstanceOf, f) }
           ${ Expr.block(updates.init, updates.last) }
       } else starts(c) mutating { (value, update) =>
         rec(c - 1,
@@ -356,11 +356,10 @@ object SizedArrayIndexImpl:
 //    }
 
   def map[T : Type, R : Type](a: Expr[Array[T]], f: Expr[T => R], n: Expr[Int])(using Quotes): Expr[Array[R]] =
-    val size = n.valueOrAbort
     '{
-      val na = ${ ofSizeImpl[R](Expr(size)) }
+      val na = ${ ofSizeImpl[R](n) }
       var i = 0
-      while i < ${ Expr(size) } do
+      while i < ${ n } do
         ${ exprTreeTransform[Unit](buildValDefElim)('{ na(i) = ${ betaReduceFixE('{ $f($a(i)) }) } }) }
         i += 1
       na
@@ -521,20 +520,25 @@ object ConstantTupleImpl:
     val rseq = bseq.map(arg => '{ $f($arg) })
     Expr.ofTupleFromSeq(rseq).asInstanceOf[Expr[Tuple.Map[Tup, F]]]
 
+  def mapFlatUnrolled[N <: Int, B: Type, R: Type](t: Expr[Repeat[N, B]], f: Expr[B => R])(using Quotes): Expr[Repeat[N, R]] =
+    val bseq = untuple[B](t)
+    val rseq = bseq.map(arg => exprTreeTransform[R](buildValDefElim)(betaReduceFixE('{ $f($arg)} )))
+    Expr.ofTupleFromSeq(rseq).asInstanceOf[Expr[Repeat[N, R]]]
+
   def mapBoundedUnrolled[Tup <: Tuple : Type, B : Type, R : Type](t: Expr[Tup], f: Expr[B => R])(using Quotes): Expr[Tuple.Map[Tup, [_] =>> R]] =
     val bseq = untuple[B](t)
     val rseq = bseq.map(arg => exprTreeTransform[R](buildValDefElim)(betaReduceFixE('{ $f($arg) })))
     Expr.ofTupleFromSeq(rseq).asInstanceOf[Expr[Tuple.Map[Tup, [_] =>> R]]]
 
-  def tabulateUnrolled[N <: Int : Type, R : Type](ne: Expr[N], f: Expr[Int => R])(using Quotes): Expr[Tuple] =
+  def tabulateUnrolled[N <: Int : Type, R : Type](ne: Expr[N], f: Expr[Int => R])(using Quotes): Expr[Repeat[N, R]] =
     val length = ne.valueOrAbort
     val rseq = Seq.range(0, length).map(i => exprTreeTransform[R](buildValDefElim)(betaReduceFixE('{ $f(${ Expr(i) }) })))
-    Expr.ofTupleFromSeq(rseq)
+    Expr.ofTupleFromSeq(rseq).asInstanceOf[Expr[Repeat[N, R]]]
 
-  def fillUnrolled[N <: Int : Type, R : Type](ne: Expr[N], f: Expr[R])(using Quotes): Expr[Tuple] =
+  def fillUnrolled[N <: Int : Type, R : Type](ne: Expr[N], f: Expr[R])(using Quotes): Expr[Repeat[N, R]] =
     val length = ne.valueOrAbort
     val rseq = Seq.range(0, length).map(_ => exprTreeTransform[R](buildValDefElim)(betaReduceFixE(f)))
-    Expr.ofTupleFromSeq(rseq)
+    Expr.ofTupleFromSeq(rseq).asInstanceOf[Expr[Repeat[N, R]]]
 
 object ConstantArgsImpl:
   def forEachUnrolled(t: Expr[Seq[Any]], f: Expr[Any => Unit])(using Quotes): Expr[Unit] =
