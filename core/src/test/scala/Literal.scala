@@ -189,6 +189,16 @@ class LiteralIt extends LiteralFunSuite:
   }
 
 class LiteralSizedArrayIndex extends LiteralFunSuite:
+  test("ofSize") {
+
+    case class A(i: Int, j: Int, xs: List[Int])
+
+//    println(show(SizedArrayIndex.ofSize[Int](10)))
+//    println(show(SizedArrayIndex.ofSize[String](10)))
+    println(show(SizedArrayIndex.ofSize[A](10)))
+  }
+
+
   test("map") {
     val a = Array(1, 2, 3)
 

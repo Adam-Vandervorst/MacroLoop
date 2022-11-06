@@ -27,6 +27,7 @@ def concreteMatrixImpl[M <: Int : Type, N <: Int : Type, A : Type](rowse: Expr[T
   assert(elements.forall(_.length == ncolumns))
 
   // TODO Special case empty tuple (of tuples)?
+  // TODO Speed up using Array literals? Do they nest?
   '{
     val ar = ${ SizedArrayIndexImpl.ofSizeImpl[A](Expr(nrows*ncolumns)) }
     ${
@@ -49,6 +50,7 @@ def concreteVectorImpl[N <: Int : Type, A : Type](elementse: Expr[Tuple])(using 
   assert(Type.valueOfConstant[N].get == size)
 
   // TODO Special case empty tuple?
+  // TODO Speed up using Array literals?
   '{
     val ar = ${ SizedArrayIndexImpl.ofSizeImpl[A](Expr(size)) }
     ${

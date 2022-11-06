@@ -5,6 +5,8 @@ import org.openjdk.jmh.annotations.*
 import java.util.concurrent.TimeUnit
 import org.openjdk.jmh.infra.Blackhole
 
+import scala.reflect.ClassTag
+import scala.compiletime.summonInline
 import be.adamv.macroloop.*
 
 
@@ -412,7 +414,7 @@ class CustomSeq:
   def macro_forEachZipped =
     val l = 2 + n * 2
     val a = new Array[Int](l)
-    IntRange.forEachZipped[(Unit, Unit)]((2, l, 2), (0, Int.MaxValue, 3))((t: (Int, Int)) => {
+    IntRange.forEachZipped[2]((2, l, 2), (0, Int.MaxValue, 3))((t: (Int, Int)) => {
       a(t._1) = t._2
       a(t._1 + 1) = t._2
     })
@@ -425,3 +427,94 @@ class CustomSeq:
       case i => run(i - 1, (i * 3) :: (i * 3) :: acc)
     run(n-1, Nil)
 end CustomSeq
+
+
+@BenchmarkMode(Array(Mode.AverageTime))
+@OutputTimeUnit(TimeUnit.NANOSECONDS)
+@Warmup(iterations = 5, time = 500, timeUnit = TimeUnit.MILLISECONDS)
+@Measurement(iterations = 5, time = 500, timeUnit = TimeUnit.MILLISECONDS)
+@Fork(2, warmups = 2)
+@State(Scope.Benchmark)
+class ArrayCreation:
+  private val n = 10
+
+  case class A(i: Int, j: Int, xs: List[Int])
+
+  inline def ctIntinline = summonInline[ClassTag[Int]]
+  inline def ctStringinline = summonInline[ClassTag[String]]
+  inline def ctAinline = summonInline[ClassTag[A]]
+
+  @Benchmark
+  def int_direct_variable =
+    new Array[Int](n)
+
+  @Benchmark
+  def int_direct_inline =
+    new Array[Int](10)
+
+  @Benchmark
+  def string_direct_variable =
+    new Array[String](n)
+
+  @Benchmark
+  def string_direct_inline =
+    new Array[String](10)
+
+  @Benchmark
+  def A_direct_variable =
+    new Array[A](n)
+
+  @Benchmark
+  def A_direct_inline =
+    new Array[A](10)
+
+
+  @Benchmark
+  def int_ct_variable =
+    ctIntinline.newArray(n)
+
+  @Benchmark
+  def int_ct_inline =
+    ctIntinline.newArray(10)
+
+  @Benchmark
+  def string_ct_variable =
+    ctStringinline.newArray(n)
+
+  @Benchmark
+  def string_ct_inline =
+    ctStringinline.newArray(10)
+
+  @Benchmark
+  def A_ct_variable =
+    ctAinline.newArray(n)
+
+  @Benchmark
+  def A_ct_inline =
+    ctAinline.newArray(10)
+
+
+  @Benchmark
+  def int_macro_variable =
+    SizedArrayIndex.ofSize[Int](n)
+
+  @Benchmark
+  def int_macro_inline =
+    SizedArrayIndex.ofSize[Int](10)
+
+  @Benchmark
+  def string_macro_variable =
+    SizedArrayIndex.ofSize[String](n)
+
+  @Benchmark
+  def string_macro_inline =
+    SizedArrayIndex.ofSize[String](10)
+
+  @Benchmark
+  def A_macro_variable =
+    SizedArrayIndex.ofSize[A](n)
+
+  @Benchmark
+  def A_macro_inline =
+    SizedArrayIndex.ofSize[A](10)
+end ArrayCreation

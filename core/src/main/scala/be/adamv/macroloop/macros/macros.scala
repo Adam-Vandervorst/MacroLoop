@@ -313,23 +313,15 @@ object SizedArrayIndexImpl:
   def ofSizeImpl[A : Type](size: Expr[Int])(using Quotes): Expr[Array[A]] =
     import quotes.reflect.*
 
-    Type.of[A] match
-      case '[ Int ] =>
-        '{ new Array[Int]($size) }.asInstanceOf[Expr[Array[A]]]
-      //    case _ =>
-      //      Implicits.search(TypeRepr.of[Class].appliedTo(TypeRepr.of[A])) match
-      //        case s: ImplicitSearchSuccess =>
-      //          val cls = s.tree.asExprOf[Class[A]]
-      //          '{ java.lang.reflect.Array.newInstance(${ cls }, ${ Expr(size) }) }.asInstanceOf[Expr[Array[A]]]
-      //        case _ =>
-      //          report.errorAndAbort(f"${TypeRepr.of[A].show} is not a class")
-      case _ =>
-        Implicits.search(TypeRepr.of[ClassTag].appliedTo(TypeRepr.of[A])) match
-          case s: ImplicitSearchSuccess =>
-            val ct = s.tree.asExprOf[ClassTag[A]]
-            '{ $ct.newArray($size) }
-          case _ =>
-            report.errorAndAbort(f"${TypeRepr.of[A].show} is not a class")
+    // Thanks to makkarpov for pointing this out
+    Apply(
+      TypeApply(
+        Select(New(TypeIdent(defn.ArrayClass)), defn.ArrayClass.primaryConstructor),
+        List(TypeTree.of[A])
+      ),
+      List(size.asTerm)
+    ).asExprOf[Array[A]]
+
 
 //  def forallExceptionCart[Tup <: Tuple : Type](tite: Expr[Tuple.Map[Tup, Iterable]], f: Expr[Tup => Boolean])(using Quotes): Expr[Boolean] =
 //    val seq = untuple[Iterable[Any]](tite)
