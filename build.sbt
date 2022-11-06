@@ -22,7 +22,7 @@ lazy val core = project.in(file("core"))
     libraryDependencies += "org.scalameta" %% "munit" % "0.7.29" % Test,
   )
 
-lazy val bench = project.in(file("core/src/bench"))
+lazy val bench = project.in(file("bench"))
   .dependsOn(core)
   .enablePlugins(JmhPlugin)
 
