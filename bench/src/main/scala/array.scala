@@ -69,11 +69,11 @@ class ArraySum:
     ArrayIndex.forEachUnrolledN(32)(ar)(k += _)
     k
 
-  @Benchmark
-  def port_while_index =
-    var k = 0
-    port.ArrayIndex.forEach[Int, Unit](ar.asInstanceOf, k += _)
-    k
+//  @Benchmark
+//  def port_while_index =
+//    var k = 0
+//    port.ArrayIndex.forEach[Int, Unit](ar.asInstanceOf, k += _)
+//    k
 end ArraySum
 
 
@@ -170,11 +170,11 @@ class ArraySumJava:
     ArrayIndex.forEachUnrolledN(32)(ar)(k += _)
     k
 
-  @Benchmark
-  def port_while_index =
-    var k = 0
-    port.ArrayIndex.forEach[java.lang.Integer, Unit](ar, k += _)
-    k
+//  @Benchmark
+//  def port_while_index =
+//    var k = 0
+//    port.ArrayIndex.forEach[java.lang.Integer, Unit](ar, k += _)
+//    k
 end ArraySumJava
 
 
@@ -221,11 +221,11 @@ class ArrayForall:
   def macro_while_index_condition =
     ArrayIndex.forallCondition(ar)(_ != matching)
 
-  @Benchmark
-  def port_while_index =
-    var k = 0
-    port.ArrayIndex.forall[Int](ar.asInstanceOf, _ != matching)
-    k
+//  @Benchmark
+//  def port_while_index =
+//    var k = 0
+//    port.ArrayIndex.forall[Int](ar.asInstanceOf, _ != matching)
+//    k
 end ArrayForall
 
 
@@ -272,9 +272,9 @@ class ArrayForallMod:
   def macro_while_index_condition =
     ArrayIndex.forallCondition(ar)(_ != matching)
 
-  @Benchmark
-  def port_while_index =
-    port.ArrayIndex.forall[Int](ar.asInstanceOf, _ != matching)
+//  @Benchmark
+//  def port_while_index =
+//    port.ArrayIndex.forall[Int](ar.asInstanceOf, _ != matching)
 end ArrayForallMod
 
 

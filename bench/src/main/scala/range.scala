@@ -10,8 +10,8 @@ import be.adamv.macroloop.*
 
 @BenchmarkMode(Array(Mode.AverageTime))
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
-@Warmup(iterations = 2, time = 50, timeUnit = TimeUnit.MILLISECONDS)
-@Measurement(iterations = 5, time = 50, timeUnit = TimeUnit.MILLISECONDS)
+@Warmup(iterations = 2, time = 250, timeUnit = TimeUnit.MILLISECONDS)
+@Measurement(iterations = 5, time = 250, timeUnit = TimeUnit.MILLISECONDS)
 @Fork(2, warmups = 2)
 @State(Scope.Benchmark)
 class Fact:
