@@ -183,6 +183,30 @@ trait MatrixMNFactory[Inner[_], CC[M <: Int, N <: Int, A] <: MatrixMNOps[M, N, A
   extension [M <: Int, N <: Int, A](m: CC[M, N, A])
     /** Check if a matrix is square. */
     inline def isSquare: Boolean = m.nrows == m.ncolumns
+    /** Check if a matrix has cycles. */
+    inline def hasCycle: Boolean =
+      val visited = fill[M, N, Boolean](false)
+
+      val directionX: Array[Int] = Array(-1, 0, 1, 0)
+      val directionY: Array[Int] = Array(0, 1, 0, -1)
+
+      def isCycle(x: Int, y: Int, px: Int = -1, py: Int = -1): Boolean =
+        visited(x, y) = true
+
+        IntRange.existsUnrolled(0, 4, 1) { k =>
+          val nx = x + directionX(k)
+          val ny = y + directionY(k)
+          m.containsPosition(nx, ny) &&
+          m(nx, ny) == m(x, y) &&
+          !(px == nx && py == ny) && (
+            visited(nx, ny) ||
+            isCycle(nx, ny, x, y)
+          )
+        }
+      end isCycle
+
+      visited.existsItem((i, j, visitedij) => !visitedij && isCycle(i, j))
+    end hasCycle
 
   extension [N <: Int, A](m: CC[N, N, A])
     // TODO unnecessary copy and allocation here; sized filterIndices or specialized implementation?
