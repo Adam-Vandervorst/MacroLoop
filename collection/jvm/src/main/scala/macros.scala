@@ -6,7 +6,7 @@
 package be.adamv.macroloop.collection.macros
 
 import be.adamv.macroloop.macros.{untuple, SizedArrayIndexImpl}
-import be.adamv.macroloop.collection.{ArraySizedVector}
+import be.adamv.macroloop.collection.VectorNArray
 
 import scala.quoted.*
 
@@ -41,7 +41,7 @@ import scala.quoted.*
 /**
  * Takes desired vector length and converts a tuple literal to an array with the tuple contents (wrapped by SizedVector).
  */
-def concreteVectorImpl[N <: Int : Type, A : Type](elementse: Expr[Tuple])(using Quotes): Expr[ArraySizedVector[N, A]] =
+def concreteVectorImpl[N <: Int : Type, A : Type](elementse: Expr[Tuple])(using Quotes): Expr[VectorNArray[N, A]] =
   val elements = untuple[A](elementse)
   val size = elements.length
 
@@ -56,6 +56,6 @@ def concreteVectorImpl[N <: Int : Type, A : Type](elementse: Expr[Tuple])(using 
   ${
   Expr.block(elements.zipWithIndex.map((m, i) =>
     '{ ar(${ Expr(i) }) = $m }).toList,
-    '{ new ArraySizedVector[N, A]{ override val data: Array[A] = ar } })
+    '{ new VectorNArray[N, A]{ override val data: Array[A] = ar } })
   }
   }

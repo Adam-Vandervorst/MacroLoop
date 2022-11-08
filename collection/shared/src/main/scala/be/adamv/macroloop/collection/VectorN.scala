@@ -18,8 +18,8 @@ import scala.compiletime.ops.int.*
  * @tparam N Elements
  * @tparam A Element-type
  */
-abstract class SizedVectorOps[N <: Int, A, CC[N <: Int, A] <: SizedVectorOps[N, A, CC]]:
-  inline def factory: SizedVectorFactory[_, CC]
+abstract class VectorNOps[N <: Int, A, CC[N <: Int, A] <: VectorNOps[N, A, CC]]:
+  inline def factory: VectorNFactory[_, CC]
 
   inline def length: N = constValue
 
@@ -63,18 +63,7 @@ abstract class SizedVectorOps[N <: Int, A, CC[N <: Int, A] <: SizedVectorOps[N, 
 
   /** Generalized kronecker (outer) product for different input vector types and output type, flattened. */
   inline def kronecker[M <: Int, B, C](that: CC[M, B],
-                                       inline combine: (A, B) => C): CC[M*N, C] = ???
-//    val cdata = SizedArrayIndex.ofSize[M*N, C]
-//    var i = 0
-//    while i < length do
-//      val a = data(i)
-//      val offset = i*constValue[M]
-//      var j = 0
-//      while j < that.length do
-//        cdata(offset + j) = combine(a, that.data(j))
-//        j += 1
-//      i += 1
-//    SizedVector.wrap(cdata)
+                                       inline combine: (A, B) => C): CC[M*N, C]
 
   /** Generalized element-wise product for different input vector types and output type. */
   inline def elementwise[B, C](that: CC[N, B],
@@ -98,7 +87,7 @@ abstract class SizedVectorOps[N <: Int, A, CC[N <: Int, A] <: SizedVectorOps[N, 
   override def equals(that: Any): Boolean
 
 
-trait SizedVectorFactory[Inner[_], CC[N <: Int, A] <: SizedVectorOps[N, A, CC]]:
+trait VectorNFactory[Inner[_], CC[N <: Int, A] <: VectorNOps[N, A, CC]]:
   transparent inline def apply[Tup <: Tuple](inline elements: Tup): CC[Tuple.Size[Tup], Tuple.Union[Tup]]
 
   /** Size and data array to SizedVector. */
@@ -106,8 +95,7 @@ trait SizedVectorFactory[Inner[_], CC[N <: Int, A] <: SizedVectorOps[N, A, CC]]:
 
   extension [A](v: CC[1, A])
     inline def singleElement: A = v(0)
-  inline def asSingleElement[A](a: A): CC[1, A] = ???
-//    apply(Tuple1(a))
+  inline def asSingleElement[A](a: A): CC[1, A] = apply(Tuple1(a))
 
   /** Take N elements from an iterator to construct a SizedVector. */
   inline def from[N <: Int, A](as: IterableOnce[A]): CC[N, A]

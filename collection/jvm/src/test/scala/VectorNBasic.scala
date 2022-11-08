@@ -1,13 +1,13 @@
-import be.adamv.macroloop.collection.ArraySizedVector
+import be.adamv.macroloop.collection.VectorNArray
 import munit.FunSuite
 
 
 object TestVectors:
-  val v1 = ArraySizedVector(2, 3)
-  val v2 = ArraySizedVector(4, 5)
-  val v3 = ArraySizedVector(2 * 4, 2 * 5, 3 * 4, 3 * 5)
-  val v4 = ArraySizedVector(2 * 4, 3 * 5)
-  val v5 = ArraySizedVector(0, 7, 0, 28)
+  val v1 = VectorNArray(2, 3)
+  val v2 = VectorNArray(4, 5)
+  val v3 = VectorNArray(2 * 4, 2 * 5, 3 * 4, 3 * 5)
+  val v4 = VectorNArray(2 * 4, 3 * 5)
+  val v5 = VectorNArray(0, 7, 0, 28)
 
 
 class VectorBasic extends FunSuite:
