@@ -88,6 +88,9 @@ abstract class VectorNOps[N <: Int, A, CC[N <: Int, A] <: VectorNOps[N, A, CC]]:
 
 
 trait VectorNFactory[Inner[_], CC[N <: Int, A] <: VectorNOps[N, A, CC]]:
+  type MatrixType[M <: Int, N <: Int, A] <: MatrixMNOps[M, N, A, MatrixType]
+  inline def matrixFactory: MatrixMNFactory[Inner, MatrixType]
+
   transparent inline def apply[Tup <: Tuple](inline elements: Tup): CC[Tuple.Size[Tup], Tuple.Union[Tup]]
 
   /** Size and data array to SizedVector. */
@@ -112,20 +115,20 @@ trait VectorNFactory[Inner[_], CC[N <: Int, A] <: VectorNOps[N, A, CC]]:
   /** Fill a vector with a certain element. */
   inline def fill[N <: Int, A](v: A): CC[N, A] = tabulate(_ => v)
 
-//  extension [M <: Int, N <: Int, A](nested: CC[M, CC[N, A]])
-//    // TODO use copy primitives
-//    /** Interpreter the inner vectors as rows of a matrix. */
-//    inline def toMatrix: Matrix[M, N, A] =
-//      Matrix.tabulate[M, N, A]((i, j) => nested(i)(j))
-//
-//  extension [N <: Int, A](v: CC[N, A])
-//    /** Generalized outer product for different input vector types and output type. */
-//    inline def outer[M <: Int, B, C](w: CC[M, B],
-//                                     inline combine: (A, B) => C): Matrix[N, M, C] =
-//      Matrix.tabulate[N, M, C]((i, j) => combine(v(i), w(j)))
-//    /** Interpret the flat vector in a Matrix with given dimension. */
-//    inline def reshape[O <: Int, P <: Int](using O*P =:= N): Matrix[O, P, A]
-//    /** Interpret the vector as a single-row matrix. */
-//    inline def asRow: Matrix[1, N, A]
-//    /** Interpret the vector as a single-column matrix. */
-//    inline def asColumn: Matrix[N, 1, A]
+  extension [M <: Int, N <: Int, A](nested: CC[M, CC[N, A]])
+    // TODO use copy primitives
+    /** Interpreter the inner vectors as rows of a matrix. */
+    inline def toMatrix: MatrixType[M, N, A] =
+      matrixFactory.tabulate[M, N, A]((i, j) => nested(i)(j))
+
+  extension [N <: Int, A](v: CC[N, A])
+    /** Generalized outer product for different input vector types and output type. */
+    inline def outer[M <: Int, B, C](w: CC[M, B],
+                                     inline combine: (A, B) => C): MatrixType[N, M, C] =
+      matrixFactory.tabulate[N, M, C]((i, j) => combine(v(i), w(j)))
+    /** Interpret the flat vector in a Matrix with given dimension. */
+    inline def reshape[O <: Int, P <: Int](using O*P =:= N): MatrixType[O, P, A]
+    /** Interpret the vector as a single-row matrix. */
+    inline def asRow: MatrixType[1, N, A]
+    /** Interpret the vector as a single-column matrix. */
+    inline def asColumn: MatrixType[N, 1, A]

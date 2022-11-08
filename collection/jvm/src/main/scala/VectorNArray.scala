@@ -73,6 +73,9 @@ abstract class VectorNArray[N <: Int, A] extends VectorNOps[N, A, VectorNArray]:
 
 
 object VectorNArray extends VectorNFactory[Array, VectorNArray]:
+  type MatrixType[M <: Int, N <: Int, A] = MatrixMNArray[M, N, A]
+  inline def matrixFactory: MatrixMNArray.type = MatrixMNArray
+
   transparent inline def apply[Tup <: Tuple](inline elements: Tup): VectorNArray[Tuple.Size[Tup], Tuple.Union[Tup]] =
     ${ macros.concreteVectorImpl[Tuple.Size[Tup], Tuple.Union[Tup]]('elements) }
 
@@ -95,23 +98,10 @@ object VectorNArray extends VectorNFactory[Array, VectorNArray]:
     IntRange.forEach(constValue[N])(i => data(i) = f(i))
     wrap(data)
 
-  /** Fill a vector with a certain element. */
-//  inline def fill[N <: Int, A](v: A): ArraySizedVector[N, A] = tabulate(_ => v)
-
-//  extension [M <: Int, N <: Int, A](nested: ArraySizedVector[M, ArraySizedVector[N, A]])
-//    // TODO use copy primitives
-//    /** Interpreter the inner vectors as rows of a matrix. */
-//    inline def toMatrix: Matrix[M, N, A] =
-//      Matrix.tabulate[M, N, A]((i, j) => nested(i)(j))
-//
-//  extension [N <: Int, A](v: ArraySizedVector[N, A])
-//    /** Generalized outer product for different input vector types and output type. */
-//    inline def outer[M <: Int, B, C](w: ArraySizedVector[M, B],
-//                                     inline combine: (A, B) => C): Matrix[N, M, C] =
-//      Matrix.tabulate[N, M, C]((i, j) => combine(v(i), w(j)))
-//    /** Interpret the flat vector in a Matrix with given dimension. */
-//    inline def reshape[O <: Int, P <: Int](using O*P =:= N): Matrix[O, P, A] = Matrix.wrap(v.data.clone())
-//    /** Interpret the vector as a single-row matrix. */
-//    inline def asRow: Matrix[1, N, A] = Matrix.wrap(v.data.clone())
-//    /** Interpret the vector as a single-column matrix. */
-//    inline def asColumn: Matrix[N, 1, A] = Matrix.wrap(v.data.clone())
+  extension [N <: Int, A](v: VectorNArray[N, A])
+    /** Interpret the flat vector in a Matrix with given dimension. */
+    inline def reshape[O <: Int, P <: Int](using O*P =:= N): MatrixMNArray[O, P, A] = matrixFactory.wrap(v.data.clone())
+    /** Interpret the vector as a single-row matrix. */
+    inline def asRow: MatrixMNArray[1, N, A] = matrixFactory.wrap(v.data.clone())
+    /** Interpret the vector as a single-column matrix. */
+    inline def asColumn: MatrixMNArray[N, 1, A] = matrixFactory.wrap(v.data.clone())

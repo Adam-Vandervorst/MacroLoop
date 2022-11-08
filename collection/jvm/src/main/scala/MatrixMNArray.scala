@@ -161,10 +161,8 @@ abstract class MatrixMNArray[M <: Int, N <: Int, A] extends MatrixMNOps[M, N, A,
 
 
 object MatrixMNArray extends MatrixMNFactory[Array, MatrixMNArray]:
-  type AsTuple[X] <: Tuple = X match
-    case Tuple => X & Tuple
-  type Flatten[Tup <: Tuple] =
-    Tuple.FlatMap[Tup, [X <: Tuple.Union[Tup]] =>> AsTuple[X]]
+  type VectorType[N <: Int, A] = VectorNArray[N, A]
+  inline def vectorFactory: VectorNArray.type = VectorNArray
 
   transparent inline def apply[Tup <: NonEmptyTuple](inline elements: Tup): MatrixMNArray[Tuple.Size[Tup], Tuple.Size[AsTuple[Tuple.Head[Tup]]], Tuple.Union[Flatten[Tup]]] =
     ${ macros.concreteMatrixImpl[
@@ -223,22 +221,20 @@ object MatrixMNArray extends MatrixMNFactory[Array, MatrixMNArray]:
     IntRange.forEach(constValue[M*N])(i => data(i) = v)
     wrap(data)
 
-//  extension [M <: Int, N <: Int, A](m: MatrixMNArray[M, N, A])
-//    inline def foldColumns[B](z: B)(op: (B, A) => B): SizedVector[M, B] =
-//      val ar = SizedArrayIndex.ofSize[M, B]
-//      m.rowsIt.map(_.foldLeft(z)(op)).copyToArray(ar)
-//      SizedVector.wrap(ar)
-//    inline def foldRows[B](z: B)(op: (B, A) => B): SizedVector[N, B] =
-//      val ar = SizedArrayIndex.ofSize[N, B]
-//      m.columnsIt.map(_.foldLeft(z)(op)).copyToArray(ar)
-//      SizedVector.wrap(ar)
+  extension [M <: Int, N <: Int, A](m: MatrixMNArray[M, N, A])
+    inline def foldColumns[B](z: B)(op: (B, A) => B): VectorNArray[M, B] =
+      val ar = SizedArrayIndex.ofSize[M, B]
+      m.rowsIt.map(_.foldLeft(z)(op)).copyToArray(ar)
+      vectorFactory.wrap(ar)
+    inline def foldRows[B](z: B)(op: (B, A) => B): VectorNArray[N, B] =
+      val ar = SizedArrayIndex.ofSize[N, B]
+      m.columnsIt.map(_.foldLeft(z)(op)).copyToArray(ar)
+      vectorFactory.wrap(ar)
 
 //  extension [N <: Int, A](m: MatrixMNArray[N, N, A])
     // TODO unnecessary copy and allocation here; sized filterIndices or specialized implementation?
     /** Get the elements on the diagonal. */
 //    inline def diagonal: SizedVector[N, A] = SizedVector.wrap(m.filterIndices(_ == _))
-
-
 
   // TODO the Fractional and Ordering abstractions are likely not in the interested of performance
   // FIXME since average and median don't utilize the matrix structure, they are bad examples

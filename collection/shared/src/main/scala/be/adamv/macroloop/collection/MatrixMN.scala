@@ -142,6 +142,9 @@ abstract class MatrixMNOps[M <: Int, N <: Int, A, CC[M <: Int, N <: Int, A] <: M
 
 
 trait MatrixMNFactory[Inner[_], CC[M <: Int, N <: Int, A] <: MatrixMNOps[M, N, A, CC]]:
+  type VectorType[N <: Int, A] <: VectorNOps[N, A, VectorType]
+  inline def vectorFactory: VectorNFactory[Inner, VectorType]
+
   type AsTuple[X] <: Tuple = X match
     case Tuple => X & Tuple
   type Flatten[Tup <: Tuple] =
@@ -175,15 +178,9 @@ trait MatrixMNFactory[Inner[_], CC[M <: Int, N <: Int, A] <: MatrixMNOps[M, N, A
   /** Fill a matrix with a certain element. */
   inline def fill[M <: Int, N <: Int, A](v: A): CC[M, N, A]
 
-//  extension [M <: Int, N <: Int, A](m: MatrixMN[M, N, A])
-//    inline def foldColumns[B](z: B)(op: (B, A) => B): SizedVector[M, B] =
-//      val ar = SizedArrayIndex.ofSize[M, B]
-//      m.rowsIt.map(_.foldLeft(z)(op)).copyToArray(ar)
-//      SizedVector.wrap(ar)
-//    inline def foldRows[B](z: B)(op: (B, A) => B): SizedVector[N, B] =
-//      val ar = SizedArrayIndex.ofSize[N, B]
-//      m.columnsIt.map(_.foldLeft(z)(op)).copyToArray(ar)
-//      SizedVector.wrap(ar)
+  extension [M <: Int, N <: Int, A](m: CC[M, N, A])
+    inline def foldColumns[B](z: B)(op: (B, A) => B): VectorType[M, B]
+    inline def foldRows[B](z: B)(op: (B, A) => B): VectorType[N, B]
 
   // TODO implement as constant type-based functions?
   extension [M <: Int, N <: Int, A](m: CC[M, N, A])
@@ -193,7 +190,7 @@ trait MatrixMNFactory[Inner[_], CC[M <: Int, N <: Int, A] <: MatrixMNOps[M, N, A
   extension [N <: Int, A](m: CC[N, N, A])
     // TODO unnecessary copy and allocation here; sized filterIndices or specialized implementation?
     /** Get the elements on the diagonal. */
-//    inline def diagonal: SizedVector[N, A] = SizedVector.wrap(m.filterIndices(_ == _))
+//    inline def diagonal: VectorType[N, A] = vectorFactory.wrap(m.filterIndices(_ == _))
     // TODO this has a more efficient implementation
     /** Check if a matrix is mirrored over its diagonal. */
     inline def isSymmetric: Boolean = m == m.transpose
