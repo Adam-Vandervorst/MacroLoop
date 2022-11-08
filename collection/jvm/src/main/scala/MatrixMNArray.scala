@@ -36,12 +36,12 @@ abstract class MatrixMNArray[M <: Int, N <: Int, A] extends MatrixMNOps[M, N, A,
   /** An iterator over all Matrix elements */
   inline def iterator: Iterator[A] = data.iterator
   /** An iterator over row-iterators. */
-  inline def rowsIt: Iterator[Iterator[A]] = new Iterator[Iterator[A]]:
+  inline def rowsIt: Iterator[Iterator[A]] = new collection.AbstractIterator[Iterator[A]]:
     var i = 0
     override def hasNext: Boolean = i < nrows
     override def next(): Iterator[A] =
       i += 1
-      new Iterator[A]:
+      new collection.AbstractIterator[A]:
         private val begin = (i - 1)*ncolumns
         private val end = i*ncolumns
         private var j = begin
@@ -51,12 +51,12 @@ abstract class MatrixMNArray[M <: Int, N <: Int, A] extends MatrixMNOps[M, N, A,
           j += 1
           r
   /** An iterator over column-iterators. */
-  inline def columnsIt: Iterator[Iterator[A]] = new Iterator[Iterator[A]]:
+  inline def columnsIt: Iterator[Iterator[A]] = new collection.AbstractIterator[Iterator[A]]:
     var j = 0
     override def hasNext: Boolean = j < ncolumns
     override def next(): Iterator[A] =
       j += 1
-      new Iterator[A]:
+      new collection.AbstractIterator[A]:
         private var i = j - 1
         override def hasNext: Boolean = i < nitems
         override def next(): A =

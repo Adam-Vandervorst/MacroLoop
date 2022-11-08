@@ -91,9 +91,9 @@ class MatrixMNArrayBasic extends FunSuite:
     assert(k1.frobenius(k2, _ * _, _ + _, 0) == k1.hadamard(k2, _ * _).data.sum)
   }
 
-//  test("filterIndices slice") {
-//    assert(g23.filterIndices((_, j) => j < 2) sameElements g23.slice[0, 2, 0, 2].data)
-//  }
+  test("slice") {
+    assert(g23.indices.collect{ case (i, j) if j < 2 => g23(i, j) } sameElements g23.slice[0, 2, 0, 2].data)
+  }
 
   test("isSquare") {
     assert(g22.isSquare)

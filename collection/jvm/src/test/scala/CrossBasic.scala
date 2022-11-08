@@ -18,6 +18,6 @@ class CrossBasic extends FunSuite:
     assert(v1.asColumn.multiply(v2.asRow, _ * _, _ + _, 0) == v3.reshape[2, 2])
   }
 
-//  test("diagonal") {
-//    assert(k3.diagonal == v5)
-//  }
+  test("diagonal") {
+    assert(k3.diagonal == v5)
+  }

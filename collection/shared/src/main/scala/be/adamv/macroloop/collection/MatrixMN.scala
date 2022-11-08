@@ -37,13 +37,13 @@ abstract class MatrixMNOps[M <: Int, N <: Int, A, CC[M <: Int, N <: Int, A] <: M
     0 <= i && i < nrows && 0 <= j && j < ncolumns
 
   /** An iterator over all Matrix indices. */
-  inline def indices: Iterator[(Int, Int)] = new Iterator[(Int, Int)]:
+  inline def indices: Iterator[(Int, Int)] = new collection.AbstractIterator[(Int, Int)]:
     var i = 0
     var j = 0
-    override def hasNext: Boolean = i < nrows && j < ncolumns
+    override def hasNext: Boolean = i < nrows
     override def next(): (Int, Int) =
       val t = (i, j)
-      if j < ncolumns then
+      if j < ncolumns - 1 then
         j += 1
       else
         i += 1
@@ -55,9 +55,6 @@ abstract class MatrixMNOps[M <: Int, N <: Int, A, CC[M <: Int, N <: Int, A] <: M
   inline def rowsIt: Iterator[Iterator[A]]
   /** An iterator over column-iterators. */
   inline def columnsIt: Iterator[Iterator[A]]
-
-//  /** Filter all elements based on their (row, column) index. */
-//  inline def filterIndices(inline p: (Int, Int) => Boolean): Array[A]
 
   // TODO have a separate (compiletime?) constant-time TransposedMatrix
   /** Eagerly transpose a matrix (swapping rows and columns). */
@@ -190,7 +187,8 @@ trait MatrixMNFactory[Inner[_], CC[M <: Int, N <: Int, A] <: MatrixMNOps[M, N, A
   extension [N <: Int, A](m: CC[N, N, A])
     // TODO unnecessary copy and allocation here; sized filterIndices or specialized implementation?
     /** Get the elements on the diagonal. */
-//    inline def diagonal: VectorType[N, A] = vectorFactory.wrap(m.filterIndices(_ == _))
+    inline def diagonal: VectorType[N, A] =
+      vectorFactory.tabulate(i => m(i, i))
     // TODO this has a more efficient implementation
     /** Check if a matrix is mirrored over its diagonal. */
     inline def isSymmetric: Boolean = m == m.transpose
