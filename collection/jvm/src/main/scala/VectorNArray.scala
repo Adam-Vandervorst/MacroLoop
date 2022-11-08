@@ -73,9 +73,8 @@ abstract class VectorNArray[N <: Int, A] extends VectorNOps[N, A, VectorNArray]:
 
 
 object VectorNArray extends VectorNFactory[Array, VectorNArray]:
-  import be.adamv.macroloop.collection.macros.concreteVectorImpl
   transparent inline def apply[Tup <: Tuple](inline elements: Tup): VectorNArray[Tuple.Size[Tup], Tuple.Union[Tup]] =
-    ${ concreteVectorImpl[Tuple.Size[Tup], Tuple.Union[Tup]]('elements) }
+    ${ macros.concreteVectorImpl[Tuple.Size[Tup], Tuple.Union[Tup]]('elements) }
 
   /** Size and data array to SizedVector. */
   inline def wrap[N <: Int, A](inline initial: Array[A]): VectorNArray[N, A] =

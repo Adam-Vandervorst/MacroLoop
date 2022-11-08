@@ -1,40 +1,39 @@
-/*
 import munit.FunSuite
 
-import be.adamv.macroloop.collection.Matrix
+import be.adamv.macroloop.collection.MatrixMNArray
 
 
 object TestMatrices:
-  val g23 = Matrix((1, 3, 6), (1, 2, 4))
+  val g23 = MatrixMNArray((1, 3, 6), (1, 2, 4))
 
-  val g22 = Matrix((4, 10), (16, 20))
+  val g22 = MatrixMNArray((4, 10), (16, 20))
 
-  val g44 = g22.flatMap(i => Matrix((i - 3, i - 2), (i - 1, i)))
+  val g44 = g22.flatMap(i => MatrixMNArray((i - 3, i - 2), (i - 1, i)))
 
-  val m1 = Matrix((2, -3, 4), (53, 3, 5))
-  val m2 = Matrix((3, 3), (5, 0), (-3, 4))
-  val m3 = Matrix((-21, 22), (159, 179))
+  val m1 = MatrixMNArray((2, -3, 4), (53, 3, 5))
+  val m2 = MatrixMNArray((3, 3), (5, 0), (-3, 4))
+  val m3 = MatrixMNArray((-21, 22), (159, 179))
 
-  val k1 = Matrix((1, 2), (3, 4))
-  val k2 = Matrix((0, 5), (6, 7))
-  val k3 = Matrix(
+  val k1 = MatrixMNArray((1, 2), (3, 4))
+  val k2 = MatrixMNArray((0, 5), (6, 7))
+  val k3 = MatrixMNArray(
     (0, 5, 0, 10),
     (6, 7, 12, 14),
     (0, 15, 0, 20),
     (18, 21, 24, 28))
-  val k4 = Matrix((0, 10), (18, 28))
-  val k3tiled: Matrix[2, 2, Matrix[2, 2, Int]] = Matrix(
-    (Matrix((0, 5), (6, 7)),
-     Matrix((0, 10), (12, 14))),
-    (Matrix((0, 15), (18, 21)),
-     Matrix((0, 20), (24, 28))),
+  val k4 = MatrixMNArray((0, 10), (18, 28))
+  val k3tiled: MatrixMNArray[2, 2, MatrixMNArray[2, 2, Int]] = MatrixMNArray(
+    (MatrixMNArray((0, 5), (6, 7)),
+     MatrixMNArray((0, 10), (12, 14))),
+    (MatrixMNArray((0, 15), (18, 21)),
+     MatrixMNArray((0, 20), (24, 28))),
   )
 
-  val s1 = Matrix.from[3, 3, -1 | 0 | 1](Seq(1, -1, 0, -1, 0, 1, 0, 1, -1))
-  val s2 = Matrix.from[3, 3, -1 | 0 | 1](Seq(-1, 0, 0, 0, 0, 0, 0, 0, 1))
+  val s1 = MatrixMNArray.from[3, 3, -1 | 0 | 1](Seq(1, -1, 0, -1, 0, 1, 0, 1, -1))
+  val s2 = MatrixMNArray.from[3, 3, -1 | 0 | 1](Seq(-1, 0, 0, 0, 0, 0, 0, 0, 1))
 
 
-class MatrixBasicExample extends FunSuite:
+class MatrixMNArrayBasicExample extends FunSuite:
   import TestMatrices.*
 
   test("directional") {
@@ -42,7 +41,7 @@ class MatrixBasicExample extends FunSuite:
       case TL, TR, BL, BR
 
     assertEquals(g44.convolve(
-      Matrix.from[2, 2, Pos](Pos.values),
+      MatrixMNArray.from[2, 2, Pos](Pos.values),
       (i, p) => Seq(p -> i), _ ++ _, Nil
     ).slice[1, 4, 1, 4].show,
     """List((TL,1), (TR,2), (BL,3), (BR,4)),List((TL,2), (TR,7), (BL,4), (BR,9)),List((TL,7), (TR,8), (BL,9), (BR,10))
@@ -53,7 +52,7 @@ class MatrixBasicExample extends FunSuite:
   test("numerical") {
     val g44f = g44.map(_.toFloat)
     assertEquals(g44f.convolve(
-      Matrix((0.25f, 0.25f), (0.25f, 0.25f)),
+      MatrixMNArray((0.25f, 0.25f), (0.25f, 0.25f)),
       _ * _, _ + _, 0f
     ).show,
     """0.25,0.75,2.25,3.75
@@ -63,9 +62,9 @@ class MatrixBasicExample extends FunSuite:
   }
 
   test("construct") {
-    assertEquals(Matrix
+    assertEquals(MatrixMNArray
       .tabulate[3, 4, Int]((i, j) => i * 10 + j)
-      .flatMap(i => Matrix(Tuple1((i, i * 2))))
+      .flatMap(i => MatrixMNArray(Tuple1((i, i * 2))))
       .show,
     """0,0,1,2,2,4,3,6
       |10,20,11,22,12,24,13,26
@@ -73,7 +72,7 @@ class MatrixBasicExample extends FunSuite:
   }
 
 
-class MatrixBasic extends FunSuite:
+class MatrixMNArrayBasic extends FunSuite:
   import TestMatrices.*
 
   test("mm") {
@@ -92,9 +91,9 @@ class MatrixBasic extends FunSuite:
     assert(k1.frobenius(k2, _ * _, _ + _, 0) == k1.hadamard(k2, _ * _).data.sum)
   }
 
-  test("filterIndices slice") {
-    assert(g23.filterIndices((_, j) => j < 2) sameElements g23.slice[0, 2, 0, 2].data)
-  }
+//  test("filterIndices slice") {
+//    assert(g23.filterIndices((_, j) => j < 2) sameElements g23.slice[0, 2, 0, 2].data)
+//  }
 
   test("isSquare") {
     assert(g22.isSquare)
@@ -129,4 +128,4 @@ class MatrixBasic extends FunSuite:
 
   test("indices containsPosition") {
     assert(g23.indices.forall(g23.containsPosition(_, _)))
-  }*/
+  }
