@@ -18,83 +18,73 @@ import scala.compiletime.ops.int.*
  * @tparam N Elements
  * @tparam A Element-type
  */
-abstract class SizedVector[N <: Int, A]:
-  val data: Array[A]
+abstract class SizedVectorOps[N <: Int, A, CC[N <: Int, A] <: SizedVectorOps[N, A, CC]]:
+  inline def factory: SizedVectorFactory[_, CC]
+
   inline def length: N = constValue
 
   /** Get the element in position i. */
-  inline def apply(inline i: Int): A = data(i)
+  inline def apply(inline i: Int): A
   /** Set the element in position i to v. */
-  inline def update(inline i: Int, inline v: A): Unit = data(i) = v
+  inline def update(inline i: Int, inline v: A): Unit
 
   /** An iterator over all elements. */
-  inline def iterator: Iterator[A] = data.iterator
+  inline def iterator: Iterator[A]
 
   /** Divide up this vector in DN chunks, creating a vector of vectors. */
-  inline def chunked[DN <: Int](using N % DN =:= 0): SizedVector[DN, SizedVector[N/DN, A]] =
-    val isize = constValue[N/DN]
-    SizedVector.tabulate { i =>
-      val idata = SizedArrayIndex.ofSize[N / DN, A]
-      Array.copy(data, i * isize, idata, 0, isize)
-      SizedVector.wrap(idata)
-    }
+  inline def chunked[DN <: Int](using N % DN =:= 0): CC[DN, CC[N/DN, A]]
   /** Take an I1 to I2 slice. */
-  inline def slice[I1 <: Int, I2 <: Int]: SizedVector[I2 - I1, A] =
-    SizedVector.wrap(data.slice(constValue[I1], constValue[I2]))
+  inline def slice[I1 <: Int, I2 <: Int]: CC[I2 - I1, A]
 
   /** Seq of all elements. */
-  inline def toSeq: Seq[A] = collection.immutable.ArraySeq.unsafeWrapArray(data)
+  inline def toSeq: Seq[A]
 
   /** Perform a side-effect to each element. */
-  inline def forEach(inline f: A => Unit): Unit = ArrayIndex.forEach(data)(f)
+  inline def forEach(inline f: A => Unit): Unit
   /** Same size vector with its elements transformed by f. */
-  inline def map[B](inline f: A => B): SizedVector[N, B] =
-    SizedVector.wrap(SizedArrayIndex.mapForSize(data, constValue[N])(f))
+  inline def map[B](inline f: A => B): CC[N, B]
   /** Each element gets expanded into a sub-vector by f. */
-  inline def flatMap[M <: Int, B](inline f: A => SizedVector[M, B]): SizedVector[M*N, B] =
-    SizedVector.wrap(SizedArrayIndex.flatMapFullyUnrolled(data, constValue[N])(f(_).data, constValue[M]))
+  inline def flatMap[M <: Int, B](inline f: A => CC[M, B]): CC[M*N, B]
 
   /** Move kernel over the vector, combining all overlapping pairs, and accumulating them with add and zero into a new entry. */
-  inline def convolve[M <: Int, B, C](kernel: SizedVector[M, B],
-                                      inline combine: (A, B) => C, inline add: (C, C) => C, inline zero: C): SizedVector[N, C] =
+  inline def convolve[M <: Int, B, C](kernel: CC[M, B],
+                                      inline combine: (A, B) => C, inline add: (C, C) => C, inline zero: C): CC[N, C] =
     val c = kernel.length/2
 
-    val result: Array[C] = SizedArrayIndex.ofSize[N, C]
-    IntRange.forEach(constValue[N])(i => result(i) = zero)
+    val res = factory.fill[N, C](zero)
 
     for i <- 0 until length
         k <- 0 until kernel.length do
       val ii = i + (k - c)
 
       if ii >= 0 && ii < length then
-        result(i) = add(result(i), combine(this(ii), kernel(k)))
-    SizedVector.wrap(result)
+        res(i) = add(res(i), combine(this(ii), kernel(k)))
+    res
 
   /** Generalized kronecker (outer) product for different input vector types and output type, flattened. */
-  inline def kronecker[M <: Int, B, C](that: SizedVector[M, B],
-                                       inline combine: (A, B) => C): SizedVector[M*N, C] =
-    val cdata = SizedArrayIndex.ofSize[M*N, C]
-    var i = 0
-    while i < length do
-      val a = data(i)
-      val offset = i*constValue[M]
-      var j = 0
-      while j < that.length do
-        cdata(offset + j) = combine(a, that.data(j))
-        j += 1
-      i += 1
-    SizedVector.wrap(cdata)
+  inline def kronecker[M <: Int, B, C](that: CC[M, B],
+                                       inline combine: (A, B) => C): CC[M*N, C] = ???
+//    val cdata = SizedArrayIndex.ofSize[M*N, C]
+//    var i = 0
+//    while i < length do
+//      val a = data(i)
+//      val offset = i*constValue[M]
+//      var j = 0
+//      while j < that.length do
+//        cdata(offset + j) = combine(a, that.data(j))
+//        j += 1
+//      i += 1
+//    SizedVector.wrap(cdata)
 
   /** Generalized element-wise product for different input vector types and output type. */
-  inline def elementwise[B, C](that: SizedVector[N, B],
-                               inline combine: (A, B) => C): SizedVector[N, C] =
-
-    val cdata: Array[C] = SizedArrayIndex.ofSize[N, C]
-    IntRange.forEach(constValue[N])(i => cdata(i) = combine(this.data(i), that.data(i)))
-    SizedVector.wrap(cdata)
+  inline def elementwise[B, C](that: CC[N, B],
+                               inline combine: (A, B) => C): CC[N, C] =
+    factory.tabulate { i =>
+      combine(this(i), that(i))
+    }
 
   /** Generalized inner product for different input vector types and output type. */
-  inline def inner[B, C](that: SizedVector[N, B],
+  inline def inner[B, C](that: CC[N, B],
                          inline combine: (A, B) => C, inline add: (C, C) => C, inline zero: C): C =
     var result = zero
     IntRange.forEach(length)(i => result = add(result, combine(this(i), that(i))))
@@ -102,63 +92,52 @@ abstract class SizedVector[N <: Int, A]:
 
   // FIXME standard toString is not-inlineable, so it doesn't allow a dimension-based representation
   /** Pretty string, do not rely on the precise output. */
-  inline def show: String = data.mkString(",")
+  inline def show: String
 
   /** Equality on vectors. */
-  override def equals(that: Any): Boolean = that match
-    case that: SizedVector[n, _] => this.data sameElements that.data
-    case _ => false
+  override def equals(that: Any): Boolean
 
 
-object SizedVector:
-  export be.adamv.macroloop.collection.TupleConstructors.vectorApply as apply
+trait SizedVectorFactory[Inner[_], CC[N <: Int, A] <: SizedVectorOps[N, A, CC]]:
+  transparent inline def apply[Tup <: Tuple](inline elements: Tup): CC[Tuple.Size[Tup], Tuple.Union[Tup]]
 
   /** Size and data array to SizedVector. */
-  inline def wrap[N <: Int, A](inline initial: Array[A]): SizedVector[N, A] =
-    assert(constValue[N] == initial.length) // NOTE not compiletime
-    new:
-      override val data: Array[A] = initial
+  inline def wrap[N <: Int, A](inline initial: Inner[A]): CC[N, A]
 
-  extension [A](v: SizedVector[1, A])
+  extension [A](v: CC[1, A])
     inline def singleElement: A = v(0)
-  inline def asSingleElement[A](a: A): SizedVector[1, A] = SizedVector(Tuple1(a))
+  inline def asSingleElement[A](a: A): CC[1, A] = ???
+//    apply(Tuple1(a))
 
   /** Take N elements from an iterator to construct a SizedVector. */
-  inline def from[N <: Int, A](as: IterableOnce[A]): SizedVector[N, A] =
-    val data: Array[A] = SizedArrayIndex.ofSize[N, A]
-    val written = as.iterator.copyToArray(data, 0, constValue[N])
-    assert(written == constValue[N])
-    SizedVector.wrap(data)
+  inline def from[N <: Int, A](as: IterableOnce[A]): CC[N, A]
 
   // TODO this probably not the expected behavior
   // TODO have a sparse class too?
   /** Like tabulate but for partial functions. */
-  inline def fromSparse[N <: Int, A](pf: PartialFunction[Int, A]): SizedVector[N, Option[A]] =
-    SizedVector.tabulate(pf.unapply)
+  inline def fromSparse[N <: Int, A](pf: PartialFunction[Int, A]): CC[N, Option[A]] =
+    tabulate(pf.unapply)
 
   /** Fill a SizedVector with elements dependent on their integer position. */
-  inline def tabulate[N <: Int, A](inline f: Int => A): SizedVector[N, A] =
-    val data: Array[A] = SizedArrayIndex.ofSize[N, A]
-    IntRange.forEach(constValue[N])(i => data(i) = f(i))
-    SizedVector.wrap(data)
+  inline def tabulate[N <: Int, A](inline f: Int => A): CC[N, A]
 
   /** Fill a vector with a certain element. */
-  inline def fill[N <: Int, A](v: A): SizedVector[N, A] = SizedVector.tabulate(_ => v)
+  inline def fill[N <: Int, A](v: A): CC[N, A] = tabulate(_ => v)
 
-  extension [M <: Int, N <: Int, A](nested: SizedVector[M, SizedVector[N, A]])
-    // TODO use copy primitives
-    /** Interpreter the inner vectors as rows of a matrix. */
-    inline def toMatrix: Matrix[M, N, A] =
-      Matrix.tabulate[M, N, A]((i, j) => nested(i)(j))
-  
-  extension [N <: Int, A](v: SizedVector[N, A])
-    /** Generalized outer product for different input vector types and output type. */
-    inline def outer[M <: Int, B, C](w: SizedVector[M, B],
-                                     inline combine: (A, B) => C): Matrix[N, M, C] =
-      Matrix.tabulate[N, M, C]((i, j) => combine(v(i), w(j)))
-    /** Interpret the flat vector in a Matrix with given dimension. */
-    inline def reshape[O <: Int, P <: Int](using O*P =:= N): Matrix[O, P, A] = Matrix.wrap(v.data.clone())
-    /** Interpret the vector as a single-row matrix. */
-    inline def asRow: Matrix[1, N, A] = Matrix.wrap(v.data.clone())
-    /** Interpret the vector as a single-column matrix. */
-    inline def asColumn: Matrix[N, 1, A] = Matrix.wrap(v.data.clone())
+//  extension [M <: Int, N <: Int, A](nested: CC[M, CC[N, A]])
+//    // TODO use copy primitives
+//    /** Interpreter the inner vectors as rows of a matrix. */
+//    inline def toMatrix: Matrix[M, N, A] =
+//      Matrix.tabulate[M, N, A]((i, j) => nested(i)(j))
+//
+//  extension [N <: Int, A](v: CC[N, A])
+//    /** Generalized outer product for different input vector types and output type. */
+//    inline def outer[M <: Int, B, C](w: CC[M, B],
+//                                     inline combine: (A, B) => C): Matrix[N, M, C] =
+//      Matrix.tabulate[N, M, C]((i, j) => combine(v(i), w(j)))
+//    /** Interpret the flat vector in a Matrix with given dimension. */
+//    inline def reshape[O <: Int, P <: Int](using O*P =:= N): Matrix[O, P, A]
+//    /** Interpret the vector as a single-row matrix. */
+//    inline def asRow: Matrix[1, N, A]
+//    /** Interpret the vector as a single-column matrix. */
+//    inline def asColumn: Matrix[N, 1, A]

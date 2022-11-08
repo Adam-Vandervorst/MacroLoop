@@ -1,3 +1,4 @@
+/*
 package be.adamv.macroloop.collection.algorithm
 
 import be.adamv.macroloop.IntRange
@@ -26,3 +27,4 @@ inline def hasCycle[M <: Int & Singleton, N <: Int & Singleton, A](m: Matrix[M, 
 
   visited.existsItem((i, j, visitedij) => !visitedij && isCycle(i, j))
 end hasCycle
+*/

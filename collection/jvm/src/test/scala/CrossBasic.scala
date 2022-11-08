@@ -1,3 +1,4 @@
+/*
 import munit.FunSuite
 
 import be.adamv.macroloop.collection.*
@@ -21,3 +22,4 @@ class CrossBasic extends FunSuite:
   test("diagonal") {
     assert(k3.diagonal == v5)
   }
+*/

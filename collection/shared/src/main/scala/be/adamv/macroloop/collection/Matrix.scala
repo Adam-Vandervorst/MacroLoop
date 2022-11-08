@@ -1,3 +1,4 @@
+/*
 /**
  * Main (Sized) Matrix implementation.
  * The Matrix dimensions have to be known at compiletime.
@@ -226,6 +227,14 @@ abstract class Matrix[M <: Int, N <: Int, A]:
 object Matrix:
   export be.adamv.macroloop.collection.TupleConstructors.matrixApply as apply
 
+  type AsTuple[X] <: Tuple = X match
+    case Tuple => X & Tuple
+  type Flatten[Tup <: Tuple] =
+    Tuple.FlatMap[Tup, [X <: Tuple.Union[Tup]] =>> AsTuple[X]]
+
+  transparent inline def matrixApply[Tup <: NonEmptyTuple](inline elements: Tup): Matrix[Tuple.Size[Tup], Tuple.Size[AsTuple[Tuple.Head[Tup]]], Tuple.Union[Flatten[Tup]]] = ???
+
+
   /** Sizes and data array to Matrix. */
   inline def wrap[M <: Int, N <: Int, A](inline initial: Array[A]): Matrix[M, N, A] =
     assert(constValue[M*N] == initial.length) // NOTE not compiletime
@@ -338,3 +347,4 @@ object Matrix:
   extension [M <: Int, N <: Int, A](g: Matrix[M, N, A])(using n: Ordering[A])
     /** Statistical median of all elements. */
     inline def median: A = g.data.sorted(using n)(g.data.length/2)
+*/

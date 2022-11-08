@@ -1,3 +1,4 @@
+/*
 import munit.FunSuite
 
 import be.adamv.macroloop.collection.Matrix
@@ -128,4 +129,4 @@ class MatrixBasic extends FunSuite:
 
   test("indices containsPosition") {
     assert(g23.indices.forall(g23.containsPosition(_, _)))
-  }
+  }*/
