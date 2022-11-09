@@ -1,4 +1,4 @@
-// TODO these macros have no tests yet; how to reuse `LiteralFunSuite`?
+// TODO these be.adamv.macroloop.macros have no tests yet; how to reuse `LiteralFunSuite`?
 /**
  * Macros intrinsically bound to the collections.
  * Currently tuple and tuple of tuples to sized vector and matrix respectively.

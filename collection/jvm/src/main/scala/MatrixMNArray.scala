@@ -161,8 +161,8 @@ abstract class MatrixMNArray[M <: Int, N <: Int, A] extends MatrixMNOps[M, N, A,
 
 
 object MatrixMNArray extends MatrixMNFactory[Array, MatrixMNArray]:
-  type VectorType[N <: Int, A] = VectorNArray[N, A]
-  inline def vectorFactory: VectorNArray.type = VectorNArray
+  override type VectorType[N <: Int, A] = VectorNArray[N, A]
+  override inline def vectorFactory: VectorNArray.type = VectorNArray
 
   transparent inline def apply[Tup <: NonEmptyTuple](inline elements: Tup): MatrixMNArray[Tuple.Size[Tup], Tuple.Size[AsTuple[Tuple.Head[Tup]]], Tuple.Union[Flatten[Tup]]] =
     ${ macros.concreteMatrixImpl[

@@ -10,7 +10,7 @@ package be.adamv.macroloop.collection
 
 import scala.compiletime.constValue
 import scala.compiletime.ops.int.*
-import be.adamv.macroloop.{ArrayIndex, IntRange, SizedArrayIndex, IterableIt}
+import be.adamv.macroloop.{IntRange, IterableIt}
 
 
 // TODO likely want to abstract Matrix out to a trait, and allow different implementations.

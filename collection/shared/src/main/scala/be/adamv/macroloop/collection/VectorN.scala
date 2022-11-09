@@ -8,7 +8,7 @@
  */
 package be.adamv.macroloop.collection
 
-import be.adamv.macroloop.{ArrayIndex, IntRange, SizedArrayIndex}
+import be.adamv.macroloop.IntRange
 
 import scala.compiletime.constValue
 import scala.compiletime.ops.int.*

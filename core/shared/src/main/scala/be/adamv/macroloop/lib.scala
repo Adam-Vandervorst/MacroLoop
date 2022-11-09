@@ -11,7 +11,6 @@ inline def showTree(inline a: Any): String = ${ showTreeImpl('a) }
 transparent inline def stripCast[T](inline t: T): T = ${ stripCastImpl('t) }
 // transparent prevents tagging the returned code with an extra typing judgement
 transparent inline def translateCode(inline x: Any, inline y: Any): Any = ${ translateCodeImpl('x, 'y) }
-inline def staticClass[A]: Class[A] = ${ staticClassImpl[A] }
 
 
 object IntRange:
@@ -83,46 +82,6 @@ object IterableIt:
 
   inline def forallExceptionCart[Tup <: Tuple](inline tite: Tuple.Map[Tup, Iterable])(inline f: Tup => Boolean): Boolean =
     ${ IterableItImpl.forallExceptionCart('tite, 'f) }
-
-object SizedArrayIndex:
-  inline def ofSize[S <: Int, A] = ${ SizedArrayIndexImpl.ofSizeTypeImpl[S, A] }
-  inline def ofSize[A](inline s: Int) = ${ SizedArrayIndexImpl.ofSizeImpl[A]('s) }
-
-  inline def mapForSize[T, R](inline a: Array[T], inline n: Int)(inline f: T => R): Array[R] =
-    inline if n <= 16 then
-      mapUnrolled(a, n)(f)
-    else if n > 1000000 then
-      mapUnrolledN(32)(a, n)(f)
-    else
-      map(a, n)(f)
-
-  inline def map[T, R](inline a: Array[T], inline n: Int)(inline f: T => R): Array[R] =
-    ${ SizedArrayIndexImpl.map('a, 'f, 'n) }
-
-  inline def mapUnrolled[T, R](inline a: Array[T], inline n: Int)(inline f: T => R): Array[R] =
-    ${ SizedArrayIndexImpl.mapUnrolled('a, 'f, 'n) }
-
-  inline def mapUnrolledN[T, R](inline k: Int)(inline a: Array[T], inline n: Int)(inline f: T => R): Array[R] =
-    ${ SizedArrayIndexImpl.mapUnrolledN('a, 'f, 'n, 'k) }
-
-  inline def flatMapFullyUnrolled[T, R](inline a: Array[T], inline n: Int)(inline f: T => Array[R], inline m: Int): Array[R] =
-    ${ SizedArrayIndexImpl.flatMapFullyUnrolled('a, 'f, 'n, 'm) }
-
-object ArrayIndex:
-  inline def forEach[T](inline a: Array[T])(inline f: T => Unit): Unit =
-    ${ ArrayIndexImpl.forEach('a, 'f) }
-
-  inline def map[T, R](inline a: Array[T])(inline f: T => R): Array[R] =
-    ${ ArrayIndexImpl.map('a, 'f) }
-
-  inline def forEachUnrolledN[T](inline n: Int)(inline a: Array[T])(inline f: T => Unit): Unit =
-    ${ ArrayIndexImpl.forEachUnrolledN('a, 'f, 'n) }
-
-  inline def forallException[T](inline a: Array[T])(inline f: T => Boolean): Boolean =
-    ${ ArrayIndexImpl.forallException('a, 'f) }
-
-  inline def forallCondition[T](inline a: Array[T])(inline f: T => Boolean): Boolean =
-    ${ ArrayIndexImpl.forallCondition('a, 'f) }
 
 object ConstantList:
   transparent inline def toTuple22(inline l: List[Any]): Tuple =
