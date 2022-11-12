@@ -1,5 +1,8 @@
 package be.adamv.macroloop.macros
 
+import scala.quoted.*
+
+
 object SizedArrayIndexImpl:
   def ofSizeTypeImpl[S <: Int : Type, A : Type](using Quotes): Expr[Array[A]] =
     ofSizeImpl(Expr(Type.valueOfConstant[S].get))

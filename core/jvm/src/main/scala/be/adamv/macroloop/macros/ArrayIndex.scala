@@ -1,5 +1,8 @@
 package be.adamv.macroloop.macros
 
+import scala.quoted.*
+import scala.annotation.tailrec
+
 
 object ArrayIndexImpl:
   def forEach[T : Type](a: Expr[Array[T]], f: Expr[T => Unit])(using Quotes): Expr[Unit] =

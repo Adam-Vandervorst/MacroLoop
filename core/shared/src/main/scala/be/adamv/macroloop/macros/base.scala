@@ -127,7 +127,7 @@ def matchBindings(using q: Quotes)(m: q.reflect.Term)(owner: q.reflect.Symbol): 
 
 def tupleFieldName(s: String): Int =
   assert(s.startsWith("_"))
-  s.tail.toInt
+  s.tail.toInt - 1
 
 def applyTupleDestruct[Tup <: Tuple : Type, R : Type](t: Tuple.Map[Tup, Expr], f: Expr[Tup => R])(using q: Quotes): Expr[R] =
   import quotes.reflect.*
