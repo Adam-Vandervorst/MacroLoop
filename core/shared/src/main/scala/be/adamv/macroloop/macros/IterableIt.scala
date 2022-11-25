@@ -20,19 +20,19 @@ object IterableItImpl:
 
   def forEachCart[Tup <: Tuple : Type](tite: Expr[Tuple.Map[Tup, Iterable]], f: Expr[Tup => Unit])(using Quotes): Expr[Unit] =
     val seq = untuple[Iterable[Any]](tite)
-    def unroll[I <: Int : Type](ites: Seq[Expr[Iterable[Any]]], args: Tuple): Expr[Unit] = ites match
-      case Nil => '{ $f(${ tupleToExpr[Tup](args.asInstanceOf) }) }
-      case ite::ites => forEachE(ite.asExprOf[Iterable[Tuple.Elem[Tup, I]]], et => unroll[S[I]](ites, args :* et))
-    unroll[0](seq, EmptyTuple)
+    def unroll[I <: Int : Type](ites: Seq[Expr[Iterable[Any]]], args: List[Expr[_]]): Expr[Unit] = ites match
+      case Nil => '{ $f(${ tupleToExpr[Tup](args) }) }
+      case ite::ites => forEachE(ite.asExprOf[Iterable[Tuple.Elem[Tup, I]]], et => unroll[S[I]](ites, args :+ et))
+    unroll[0](seq, Nil)
 
   def forallExceptionCart[Tup <: Tuple : Type](tite: Expr[Tuple.Map[Tup, Iterable]], f: Expr[Tup => Boolean])(using q: Quotes): Expr[Boolean] =
     val seq = untuple[Iterable[Any]](tite)
-    def unroll[I <: Int : Type](ites: Seq[Expr[Iterable[Any]]], args: Tuple): Expr[Unit] = ites match
-      case Nil => '{ if !${ applyTupleDestruct[Tup, Boolean](args.asInstanceOf, f) } then throw Break }
-      case ite::ites => forEachE(ite.asExprOf[Iterable[Tuple.Elem[Tup, I]]], et => unroll[S[I]](ites, args :* et))
+    def unroll[I <: Int : Type](ites: Seq[Expr[Iterable[Any]]], args: List[Expr[_]]): Expr[Unit] = ites match
+      case Nil => '{ if !${ applyTupleDestruct[Tup, Boolean](args, f) } then throw Break }
+      case ite::ites => forEachE(ite.asExprOf[Iterable[Tuple.Elem[Tup, I]]], et => unroll[S[I]](ites, args :+ et))
     '{
       try
-        ${ unroll[0](seq, EmptyTuple) }
+        ${ unroll[0](seq, Nil) }
         true
       catch
         case Break => false

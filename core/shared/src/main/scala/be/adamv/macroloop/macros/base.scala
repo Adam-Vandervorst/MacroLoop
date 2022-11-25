@@ -93,24 +93,36 @@ def unlist(xs: Expr[List[Any]])(using Quotes): List[Expr[Any]] = xs match
   case '{ $x :: ($xs: List[Any]) } => x :: unlist(xs)
   case '{ Nil } => Nil
 
-def untuple[B : Type](e: Expr[Tuple])(using Quotes): Seq[Expr[B]] =
+def untuple[B : Type](e: Expr[Tuple])(using Quotes): List[Expr[B]] =
   import quotes.reflect.*
-  def rec(tree: Term): Seq[Expr[B]] = tree match
+
+  def rec(tree: Term): List[Expr[B]] = tree match
     case Repeated(elems, _) => elems.map(_.asExprOf[B])
     case Typed(e, _) => rec(e)
     case Inlined(_, Nil, e) => rec(e)
     // UNSAFE, assume tuple
-    case Apply(_, args) => args.map(_.asExprOf[B])
-    case _ => report.errorAndAbort(s"couldn't untuple tree ${tree.show}")
+    case Apply(Select(Ident("TupleXXL"), "apply"), List(args)) => rec(args)
+    case Apply(TypeApply(_, _), args) => args.map(_.asExprOf[B])
+    case Apply(Select(Ident(c), "apply"), args) => args.map(_.asExprOf[B])
+    case _ => report.errorAndAbort(s"couldn't untuple tree ${tree.show(using Printer.TreeStructure)}")
   rec(stripCast(e.asTerm))
 
-def tupleToExpr[Tup <: Tuple : Type](t: Tuple.Map[Tup, Expr])(using Quotes): Expr[Tup] =
+def tupleToExpr[Tup <: Tuple : Type](t: List[Expr[_]])(using q: Quotes): Expr[Tup] =
   import quotes.reflect.*
-  val terms = t.productIterator.map(_.asInstanceOf[Expr[Any]].asTerm).toList
-  val types = terms.map(_.tpe.widen)
-  val tupleObject = Seq('{Tuple1}, '{Tuple2}, '{Tuple3}, '{Tuple4}, '{Tuple5}, '{Tuple6}, '{Tuple7}, '{Tuple8}, '{Tuple9}, '{Tuple10})(terms.length - 1)
-  val tupleApply = Select.unique(tupleObject.asTerm, "apply")
-  Apply(TypeApply(tupleApply, types.map(Inferred(_))), terms).asExprOf[Tup]
+
+  val terms = t.map(v => buildTrivialInlineElim().transformTerm(v.asTerm)(Symbol.spliceOwner))
+  val types: List[TypeTree] = terms.map { case l: Literal => Singleton(l); case x => Inferred(x.tpe.widen) }
+
+  if terms.length < 23 then
+    val tupleObject = Seq('{Tuple1}, '{Tuple2}, '{Tuple3}, '{Tuple4}, '{Tuple5}, '{Tuple6}, '{Tuple7}, '{Tuple8}, '{Tuple9}, '{Tuple10},
+                          '{Tuple11}, '{Tuple12}, '{Tuple13}, '{Tuple14}, '{Tuple15}, '{Tuple16}, '{Tuple17}, '{Tuple18}, '{Tuple19}, '{Tuple20},
+                          '{Tuple21}, '{Tuple22})(terms.length - 1)
+    val tupleApply = Select.unique(tupleObject.asTerm, "apply")
+
+    Apply(TypeApply(tupleApply, types), terms).asExprOf[Tup]
+  else
+    import scala.runtime.TupleXXL
+    Apply(Select.unique('{ TupleXXL }.asTerm, "apply"), List(Repeated(terms, TypeTree.of[Any]))).asExpr.asInstanceOf[Expr[Tup]]
 
 def lambdaDestruct(using q: Quotes)(f: q.reflect.Term)(owner: q.reflect.Symbol): Option[(q.reflect.Symbol, q.reflect.Term)] =
   import quotes.reflect.*
@@ -129,7 +141,7 @@ def tupleFieldName(s: String): Int =
   assert(s.startsWith("_"))
   s.tail.toInt - 1
 
-def applyTupleDestruct[Tup <: Tuple : Type, R : Type](t: Tuple.Map[Tup, Expr], f: Expr[Tup => R])(using q: Quotes): Expr[R] =
+def applyTupleDestruct[Tup <: Tuple : Type, R : Type](t: List[Expr[_]], f: Expr[Tup => R])(using q: Quotes): Expr[R] =
   import quotes.reflect.*
   import reflect.Selectable.reflectiveSelectable
   lambdaDestruct(f.asTerm)(Symbol.spliceOwner) match
@@ -137,11 +149,11 @@ def applyTupleDestruct[Tup <: Tuple : Type, R : Type](t: Tuple.Map[Tup, Expr], f
       matchBindings(body)(Symbol.spliceOwner) match // TODO tighten matching
         case Some((bindings, rhs)) =>
           assert(bindings.length == t.size)
-          buildRefRemap(bindings.zip(t.toList.map(_.asInstanceOf[Expr[Any]].asTerm)).toMap).transformTerm(rhs)(Symbol.spliceOwner).asExprOf[R]
+          buildRefRemap(bindings.zip(t.map(_.asTerm)).toMap).transformTerm(rhs)(Symbol.spliceOwner).asExprOf[R]
         case None =>
           // TODO this can still be an automatic expansion, which will crash the solution below
           val reduced = constantFoldSelected(body, (x, n) =>
-            Option.when(symbol == x)(t.asInstanceOf[NonEmptyTuple].apply(tupleFieldName(n)).asInstanceOf[Expr[Any]].asTerm))
+            Option.when(symbol == x)(t(tupleFieldName(n)).asTerm))
           // TODO constant fold apply too
           reduced.asExprOf[R]
     case None =>

@@ -67,16 +67,16 @@ object IntRangeImpl:
   def forEachZipped[N <: Int : Type](ssst: Expr[Repeat[N, (Int, Int, Int)]], f: Expr[Repeat[N, Int] => Unit])(using q: Quotes): Expr[Unit] =
     val Seq(starts, stops, steps) = untuple[(Int, Int, Int)](ssst).map(untuple[Int](_)).transpose
 
-    def rec(c: Int, updates: List[Expr[Unit]], conditions: List[Expr[Boolean]], args: Tuple): Expr[Unit] =
+    def rec(c: Int, updates: List[Expr[Unit]], conditions: List[Expr[Boolean]], args: List[Expr[Int]]): Expr[Unit] =
       if c < 0 then '{
         while ${ conditions.reduce((x, y) => '{ $x && $y }) } do
-          ${ applyTupleDestruct[Repeat[N, Int], Unit](args.asInstanceOf, f) }
+          ${ applyTupleDestruct[Repeat[N, Int], Unit](args, f) }
           ${ Expr.block(updates.init, updates.last) }
       } else starts(c) mutating { (value, update) =>
         rec(c - 1,
           exprTreeTransform[Unit](buildValDefElim)(betaReduceFixE('{ $update($value + ${ steps(c) }) }))::updates,
           '{ $value < ${ stops(c) } }::conditions,
-          value *: args)
+          value::args)
       }
 
-    rec(starts.length - 1, Nil, Nil, EmptyTuple)
+    rec(starts.length - 1, Nil, Nil, Nil)
