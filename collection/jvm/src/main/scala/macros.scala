@@ -34,7 +34,7 @@ def concreteMatrixImpl[M <: Int : Type, N <: Int : Type, A : Type](rowse: Expr[T
   Expr.block(elements.zipWithIndex.flatMap((row: Seq[Expr[A]], i: Int) =>
     row.zipWithIndex.map((e, j) =>
       '{ ar(${ Expr(i*ncolumns + j) }) = $e })).toList,
-    '{ new MatrixMNArray[M, N, A]{ override val data: Array[A] = ar } })
+    '{ new MatrixMNArray[M, N, A](ar) })
   }
   }
 
@@ -56,6 +56,6 @@ def concreteVectorImpl[N <: Int : Type, A : Type](elementse: Expr[Tuple])(using 
   ${
   Expr.block(elements.zipWithIndex.map((m, i) =>
     '{ ar(${ Expr(i) }) = $m }).toList,
-    '{ new VectorNArray[N, A]{ override val data: Array[A] = ar } })
+    '{ new VectorNArray[N, A](ar) })
   }
   }

@@ -11,9 +11,8 @@ import scala.compiletime.ops.int.*
  * @tparam N Elements
  * @tparam A Element-type
  */
-abstract class VectorNArray[N <: Int, A] extends VectorNOps[N, A, VectorNArray]:
+final class VectorNArray[N <: Int, A](final val data: Array[A]) extends AnyVal with VectorNOps[N, A, VectorNArray]:
   override inline def factory: VectorNArray.type = VectorNArray
-  val data: Array[A]
 
   /** Get the element in position i. */
   inline def apply(inline i: Int): A = data(i)
@@ -82,21 +81,20 @@ object VectorNArray extends VectorNFactory[Array, VectorNArray]:
   /** Size and data array to SizedVector. */
   inline def wrap[N <: Int, A](inline initial: Array[A]): VectorNArray[N, A] =
     assert(constValue[N] == initial.length) // NOTE not compiletime
-    new:
-      override val data: Array[A] = initial
+    new VectorNArray(initial)
 
   /** Take N elements from an iterator to construct a SizedVector. */
   inline def from[N <: Int, A](as: IterableOnce[A]): VectorNArray[N, A] =
     val data: Array[A] = SizedArrayIndex.ofSize[N, A]
     val written = as.iterator.copyToArray(data, 0, constValue[N])
     assert(written == constValue[N])
-    wrap(data)
+    new VectorNArray(data)
 
   /** Fill a SizedVector with elements dependent on their integer position. */
   inline def tabulate[N <: Int, A](inline f: Int => A): VectorNArray[N, A] =
     val data: Array[A] = SizedArrayIndex.ofSize[N, A]
     IntRange.forEach(constValue[N])(i => data(i) = f(i))
-    wrap(data)
+    new VectorNArray(data)
 
   extension [N <: Int, A](v: VectorNArray[N, A])
     /** Interpret the flat vector in a Matrix with given dimension. */

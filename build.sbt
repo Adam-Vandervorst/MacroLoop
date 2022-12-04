@@ -33,7 +33,7 @@ lazy val collection = crossProject(JSPlatform, JVMPlatform, NativePlatform).with
 
 lazy val bench = crossProject(JVMPlatform).withoutSuffixFor(JVMPlatform).crossType(CrossType.Pure)
   .in(file("bench"))
-  .dependsOn(core % "compile->compile;test->test;provided->provided")
+  .dependsOn(core % "compile->compile;test->test;provided->provided", collection % "compile->compile;test->test;provided->provided")
   .enablePlugins(JmhPlugin)
 
 lazy val staging = crossProject(JVMPlatform).withoutSuffixFor(JVMPlatform).crossType(CrossType.Pure)

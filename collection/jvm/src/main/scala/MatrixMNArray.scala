@@ -23,10 +23,8 @@ import scala.compiletime.ops.int.*
  * @tparam N Columns
  * @tparam A Element-type
  */
-abstract class MatrixMNArray[M <: Int, N <: Int, A] extends MatrixMNOps[M, N, A, MatrixMNArray]:
+final class MatrixMNArray[M <: Int, N <: Int, A](final val data: Array[A]) extends AnyVal with MatrixMNOps[M, N, A, MatrixMNArray]:
   inline def factory: MatrixMNArray.type = MatrixMNArray
-
-  val data: Array[A]
 
   /** Get the element at row i and column j. */
   inline def apply(inline i: Int, inline j: Int): A = data(i*ncolumns + j)
@@ -175,15 +173,14 @@ object MatrixMNArray extends MatrixMNFactory[Array, MatrixMNArray]:
   /** Sizes and data array to Matrix. */
   inline def wrap[M <: Int, N <: Int, A](inline initial: Array[A]): MatrixMNArray[M, N, A] =
     assert(constValue[M*N] == initial.length) // NOTE not compiletime
-    new:
-      override val data: Array[A] = initial
+    new MatrixMNArray(initial)
 
   /** Take M*N elements from an iterator to construct a Matrix. */
   inline def from[M <: Int, N <: Int, A](as: IterableOnce[A]): MatrixMNArray[M, N, A] =
     val data: Array[A] = SizedArrayIndex.ofSize[M*N, A]
     val written = as.iterator.copyToArray(data, 0, constValue[M*N])
     assert(written == constValue[M*N])
-    wrap(data)
+    new MatrixMNArray(data)
 
   /** Take M iterators from an iterator and take N of each of those to construct a Matrix. */
   inline def from2D[M <: Int, N <: Int, A](ass: IterableOnce[IterableOnce[A]]): MatrixMNArray[M, N, A] =
@@ -199,7 +196,7 @@ object MatrixMNArray extends MatrixMNFactory[Array, MatrixMNArray]:
       val written = innerit.copyToArray(data, k, nk)
       assert(written == m)
       k = nk
-    wrap(data)
+    new MatrixMNArray(data)
 
   /** Fill a matrix with elements dependent on their (row, column) position. */
   inline def tabulate[M <: Int, N <: Int, A](inline f: (Int, Int) => A): MatrixMNArray[M, N, A] =
@@ -213,13 +210,13 @@ object MatrixMNArray extends MatrixMNFactory[Array, MatrixMNArray]:
         data(j*n + i) = f(j, i)
         i += 1
       j += 1
-    wrap(data)
+    new MatrixMNArray(data)
 
   /** Fill a matrix with a certain element. */
   inline def fill[M <: Int, N <: Int, A](v: A): MatrixMNArray[M, N, A] =
     val data: Array[A] = SizedArrayIndex.ofSize[M*N, A]
     IntRange.forEach(constValue[M*N])(i => data(i) = v)
-    wrap(data)
+    new MatrixMNArray(data)
 
   extension [M <: Int, N <: Int, A](m: MatrixMNArray[M, N, A])
     inline def foldColumns[B](z: B)(op: (B, A) => B): VectorNArray[M, B] =

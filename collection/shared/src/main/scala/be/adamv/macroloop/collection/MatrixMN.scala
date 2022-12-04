@@ -21,7 +21,7 @@ import be.adamv.macroloop.{IntRange, IterableIt}
  * @tparam N Columns
  * @tparam A Element-type
  */
-abstract class MatrixMNOps[M <: Int, N <: Int, A, CC[M <: Int, N <: Int, A] <: MatrixMNOps[M, N, A, CC]]:
+trait MatrixMNOps[M <: Int, N <: Int, A, CC[M <: Int, N <: Int, A] <: MatrixMNOps[M, N, A, CC]] extends Any:
   inline def factory: MatrixMNFactory[_, CC]
 
   inline def nrows: M = constValue

@@ -18,7 +18,7 @@ import scala.compiletime.ops.int.*
  * @tparam N Elements
  * @tparam A Element-type
  */
-abstract class VectorNOps[N <: Int, A, CC[N <: Int, A] <: VectorNOps[N, A, CC]]:
+trait VectorNOps[N <: Int, A, CC[N <: Int, A] <: VectorNOps[N, A, CC]] extends Any:
   inline def factory: VectorNFactory[_, CC]
 
   inline def length: N = constValue

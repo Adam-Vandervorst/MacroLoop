@@ -187,7 +187,7 @@ class ListReArrange:
   end rearrange2
 
   def rearrange3[A](data: List[A], indices: List[Int]): List[A] =
-    val mapping = collection.mutable.LongMap.empty[A]
+    val mapping = scala.collection.mutable.LongMap.empty[A]
     var remaining: List[A] = Nil
 
     for (a, i) <- (data lazyZip indices) do
